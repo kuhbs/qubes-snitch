@@ -1,0 +1,111 @@
+# Qubes Snitch runtime config
+
+
+# Choose the terminal background so source-name colors stay readable
+# Valid values: dark for a black terminal background, light for a white terminal background
+theme: dark
+
+# Show a desktop popup when unknown traffic waits for an allow/reject decision
+# Valid values: True or False; security alerts always use notify-send either way
+notify_send: True
+
+# Keep notification popups visible for this many milliseconds
+notify_send_timeout: 5000
+
+# Keep this many unanswered allow/reject questions before rejecting new prompts
+pending_queue_size: 200
+
+# Keep this many DNS answer hints per source VM
+# The cache is RAM-only and entries still expire by DNS TTL
+dns_cache_max_per_source: 32768
+
+# Keep this many DNS answer hints globally
+dns_cache_max_global: 131072
+
+# Refresh this many stale DNS hint names at once for a prompt
+dns_cache_refresh_workers: 32
+
+# Generic DispVM children of this template stay numbered and temporary
+# If you rename Qubes' default disposable template, rename old rule files in /rw/usrlocal/qubes-snitch/rules if needed
+default_disposable_vm_name: default-dvm
+
+# Rate-limit repeated reject logs with nftables syntax
+limit_rate: 3/minute
+burst: 5
+
+# Terminal prompt column widths in characters
+# Long target/DNS cells keep their full text and borrow padding from SERVICE when possible
+prompt_column_widths:
+  queue: 10
+  source: 18
+  target: 25
+  dns: 42
+  service: 22
+
+# Color normal network SERVICE cells; DNS traffic has resolver-specific colors
+prompt_protocol_colors:
+  encrypted:
+    # SSH
+    - proto: tcp
+      port: 22
+    # HTTPS
+    - proto: tcp
+      port: 443
+    # QUIC / HTTP3
+    - proto: udp
+      port: 443
+    # SMTP over TLS
+    - proto: tcp
+      port: 465
+    # Mail submission, usually STARTTLS
+    - proto: tcp
+      port: 587
+    # DNS over TLS
+    - proto: tcp
+      port: 853
+    # IMAP over TLS
+    - proto: tcp
+      port: 993
+    # POP3 over TLS
+    - proto: tcp
+      port: 995
+  unencrypted:
+    # FTP data
+    - proto: tcp
+      port: 20
+    # FTP control
+    - proto: tcp
+      port: 21
+    # SMTP plaintext/server-to-server
+    - proto: tcp
+      port: 25
+    # DNS over TCP
+    - proto: tcp
+      port: 53
+    # DNS plaintext
+    - proto: udp
+      port: 53
+    # HTTP
+    - proto: tcp
+      port: 80
+    # POP3 plaintext
+    - proto: tcp
+      port: 110
+    # NNTP plaintext
+    - proto: tcp
+      port: 119
+    # IMAP plaintext
+    - proto: tcp
+      port: 143
+    # LDAP plaintext
+    - proto: tcp
+      port: 389
+    # Printing
+    - proto: tcp
+      port: 631
+    # Printing discovery/data
+    - proto: udp
+      port: 631
+    # IRC plaintext
+    - proto: tcp
+      port: 6667

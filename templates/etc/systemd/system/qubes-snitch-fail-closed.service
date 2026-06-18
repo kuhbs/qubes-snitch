@@ -1,0 +1,18 @@
+# Early fail-closed table for the Qubes Snitch firewall VM
+# This runs before Qubes networking can bring forwarding online
+
+[Unit]
+Description=Qubes Snitch early fail-closed firewall
+DefaultDependencies=no
+After=local-fs.target
+Before=network-pre.target network.target network-online.target qubes-network.service qubes-firewall.service qubes-snitchd.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Qubes reports network-providing AppVMs as ProxyVM, which is where Snitch runs
+ExecCondition=/bin/sh -c '[ "$(/usr/bin/qubesdb-read /qubes-vm-type)" = "ProxyVM" ]'
+ExecStart=/usr/sbin/nft -f /usr/lib/qubes-snitch/fail-closed.nft
+
+[Install]
+WantedBy=sysinit.target

@@ -1,0 +1,16 @@
+# Static startup table loaded by systemd before Python parses config or asks dom0
+# The daemon replaces this table with rendered per-source policy after source discovery
+destroy table inet qubes_snitch
+table inet qubes_snitch {
+ chain input {
+  type filter hook input priority filter; policy accept;
+  # Snitch source policy controls forwarded traffic, but packets addressed to the firewall VM itself use the input hook
+  # Client VMs should not talk directly to local NetVM/gateway services when Snitch says their traffic is rejected
+  # Match only Qubes client vif interfaces so loopback, upstream eth0, and the firewall VM's own outbound traffic are untouched
+  iifname "vif*" fib daddr type local log prefix "QUBES-SNITCH local reject " counter reject with icmpx admin-prohibited
+ }
+ chain forward {
+  type filter hook forward priority filter; policy drop;
+  meta nfproto ipv4 log prefix "QUBES-SNITCH fail-closed reject " counter reject with icmpx admin-prohibited
+ }
+}

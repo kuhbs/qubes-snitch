@@ -1,0 +1,46 @@
+# systemd service that starts the qubes-snitch daemon inside the firewall NetVM
+# The daemon owns nftables/NFQUEUE handling and waits for CLI allow/reject decisions
+
+[Unit]
+Description=Qubes Snitch firewall
+Requires=qubes-snitch-fail-closed.service qubes-iptables.service qubes-network.service qubes-firewall.service
+After=qubes-snitch-fail-closed.service qubes-iptables.service qubes-network.service qubes-firewall.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Qubes reports network-providing AppVMs as ProxyVM, which is where Snitch runs
+ExecCondition=/bin/sh -c '[ "$(/usr/bin/qubesdb-read /qubes-vm-type)" = "ProxyVM" ]'
+# Keep this restart-time guard even though the early unit owns the boot-time guard
+ExecStartPre=/usr/sbin/nft -f /usr/lib/qubes-snitch/fail-closed.nft
+# Flush conntrack on every daemon start/restart so old established flows cannot survive policy changes
+# Without this, a TCP session opened while allowed can keep passing after the YAML rule changes to reject
+ExecStartPre=/usr/sbin/conntrack -F
+ExecStart=/usr/sbin/qubes-snitchd
+ExecStopPost=/usr/lib/qubes-snitch/stop-post.sh
+Restart=no
+
+# Keep only the privileges needed for nftables/NFQUEUE, socket ownership, and notify-send as user
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_CHOWN CAP_SETUID CAP_SETGID
+NoNewPrivileges=yes
+
+# The daemon should only write runtime state and persistent user decisions
+ProtectSystem=strict
+ReadWritePaths=/run/qubes-snitch /rw/usrlocal/qubes-snitch
+RuntimeDirectory=qubes-snitch
+RuntimeDirectoryMode=0750
+
+# Basic service sandboxing that should not interfere with Qubes qrexec, nftables, or local CLI sockets
+PrivateTmp=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectHostname=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_NETLINK
+RestrictRealtime=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

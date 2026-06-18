@@ -1,0 +1,11 @@
+# Purpose: XFCE launcher for the Qubes-Snitch terminal prompt
+# Launches the CLI in xfce4-terminal so Qubes app menus open it the supported way
+[Desktop Entry]
+Type=Application
+Name=Qubes Snitch
+Comment=Open the Qubes-Snitch prompt
+Exec=/usr/bin/xfce4-terminal --title=Qubes-Snitch --command=/usr/bin/qubes-snitch
+Icon=network-wired
+Terminal=false
+Categories=System;Network;
+StartupNotify=false
