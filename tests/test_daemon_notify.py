@@ -99,6 +99,7 @@ class DaemonNotifyTests(unittest.TestCase):
         finally:
             snitchd.notify.subprocess.run = old_run
 
+        self.assertIn("--icon=/usr/share/icons/hicolor/scalable/apps/qubes-snitch.svg", calls[0][0])
         self.assertIn("--expire-time=5000", calls[0][0])
         self.assertIn("browser -> 1.2.3.4 tcp/443", calls[0][0])
         self.assertTrue(calls[0][1])
@@ -135,6 +136,7 @@ class DaemonNotifyTests(unittest.TestCase):
 
         self.assertIn("-u", calls[0][0])
         self.assertIn("critical", calls[0][0])
+        self.assertIn("--icon=/usr/share/icons/hicolor/scalable/apps/qubes-snitch.svg", calls[0][0])
         self.assertIn("--expire-time=0", calls[0][0])
         self.assertTrue(calls[0][1])
 

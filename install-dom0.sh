@@ -37,22 +37,25 @@ qvm-run -u root -p "$SNITCH_TEMPLATE" 'apt-get update && apt-get install -y git'
 qvm-run -u user -p "$SNITCH_TEMPLATE" "rm -rf /home/user/qubes-snitch && git clone '$REPO_URL' /home/user/qubes-snitch"
 # Run install.sh as root because it writes /usr, /etc, and systemd files inside the template
 qvm-run -u root -p "$SNITCH_TEMPLATE" 'cd /home/user/qubes-snitch && ./install.sh'
+# Copy the dom0 source-map helper from the cloned template checkout into dom0
+source_helper=$(mktemp)
+qvm-run --pass-io --no-gui --user user "$SNITCH_TEMPLATE" \
+    'cat /home/user/qubes-snitch/templates/dom0/usr/local/lib/qubes-snitch/sources.py' \
+    > "$source_helper"
+sudo install -d -m 0755 /usr/local/lib/qubes-snitch
+sudo install -m 0644 "$source_helper" /usr/local/lib/qubes-snitch/sources.py
+rm -f "$source_helper"
+
 # Shut down the template before creating sys-snitch so the new AppVM sees all installed files
 qvm-shutdown --wait "$SNITCH_TEMPLATE"
 
 
-# Create the dom0 qrexec service that lets sys-snitch ask for VM names, IPv4, labels, class, and template
-sudo tee "/etc/qubes-rpc/$RPC_SERVICE" >/dev/null <<'EOF'
+# Create the dom0 qrexec service that lets sys-snitch ask for downstream VM identity only
+sudo tee "/etc/qubes-rpc/$RPC_SERVICE" >/dev/null <<EOF
 #!/bin/sh
-qvm-ls --raw-data --fields NAME,IP,LABEL,CLASS,TEMPLATE | while IFS='|' read -r name ip label class template; do
-    # no-IP rows cannot originate forwarded packets through Snitch, but paused VMs keep policy identity
-    [ "$name" = dom0 ] && continue
-    [ -n "$ip" ] && [ "$ip" != "-" ] || continue
-    printf '%s|%s|%s|%s|%s\n' "$name" "$ip" "$label" "$class" "$template"
-done
+SNITCH_VM=$SNITCH_VM exec python3 /usr/local/lib/qubes-snitch/sources.py
 EOF
 sudo chmod 755 "/etc/qubes-rpc/$RPC_SERVICE"
-
 
 # Allow only sys-snitch to call the read-only source identity service
 sudo tee "$RPC_POLICY" >/dev/null <<EOF

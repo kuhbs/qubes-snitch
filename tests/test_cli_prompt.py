@@ -67,7 +67,7 @@ class CliPromptTests(unittest.TestCase):
         self.assertIn("\033[96mqubes.dns-1.internal\033[0m", internal_line)
         self.assertIn("\033[96mdomain 53/udp\033[0m", internal_line)
         self.assertIn("\033[91m8.8.8.8\033[0m", external_line)
-        self.assertIn("\033[91mdns.google\033[0m", external_line)
+        self.assertIn("\033[91mPTR dns.google\033[0m", external_line)
         self.assertIn("\033[91mdomain 53/udp\033[0m", external_line)
 
     def test_cli_colors_dns_questions_by_resolver(self):
@@ -89,10 +89,10 @@ class CliPromptTests(unittest.TestCase):
     def test_cli_colors_normal_ip_dns_and_service_cells(self):
         # For normal IP traffic, TARGET stays plain while DNS quality and SERVICE get their own colors
         cli = load_cli()
-        dns_cached = {"source": "browser", "source_label": "blue", "dst": "104.18.2.166", "proto": "tcp", "dport": 443, "host": "DNS updates.signal.org"}
+        dns_cached = {"source": "browser", "source_label": "blue", "dst": "104.18.2.166", "proto": "tcp", "dport": 443, "host": "A updates.signal.org"}
         ptr_only = {"source": "browser", "source_label": "blue", "dst": "203.0.113.10", "proto": "tcp", "dport": 993, "host": "PTR mail.example.com"}
         no_ptr = {"source": "browser", "source_label": "blue", "dst": "193.174.160.18", "proto": "tcp", "dport": 9999, "host": None}
-        icmp = {"source": "browser", "source_label": "blue", "dst": "162.55.47.18", "proto": "icmp", "dport": None, "host": "DNS blunix.com"}
+        icmp = {"source": "browser", "source_label": "blue", "dst": "162.55.47.18", "proto": "icmp", "dport": None, "host": "A blunix.com"}
         qubes_dns_1 = {"source": "browser", "source_label": "blue", "dst": "10.139.1.1", "proto": "icmp", "dport": None, "host": None}
         qubes_dns_2 = {"source": "browser", "source_label": "blue", "dst": "10.139.1.2", "proto": "icmp", "dport": None, "host": None}
 
@@ -104,22 +104,22 @@ class CliPromptTests(unittest.TestCase):
         qubes_dns_2_line = cli.packet_line(qubes_dns_2, PROMPT_CONFIG)
 
         self.assertIn("\033[39m104.18.2.166\033[0m", dns_line)
-        self.assertIn("\033[92mupdates.signal.org\033[0m", dns_line)
+        self.assertIn("\033[92mA updates.signal.org\033[0m", dns_line)
         self.assertIn("\033[92mhttps 443/tcp\033[0m", dns_line)
         self.assertIn("\033[93mPTR mail.example.com\033[0m", ptr_line)
         self.assertIn("\033[92mimaps 993/tcp\033[0m", ptr_line)
         self.assertIn("\033[91mno PTR\033[0m", no_ptr_line)
         self.assertIn("\033[91m9999/tcp\033[0m", no_ptr_line)
         self.assertIn("\033[91micmp\033[0m", icmp_line)
-        self.assertIn("\033[92mblunix.com\033[0m", icmp_line)
+        self.assertIn("\033[92mA blunix.com\033[0m", icmp_line)
         self.assertIn("\033[96mqubes.dns-1.internal\033[0m", qubes_dns_1_line)
         self.assertIn("\033[96mqubes.dns-2.internal\033[0m", qubes_dns_2_line)
 
     def test_cli_keeps_action_aligned_after_long_dns_column(self):
         # Long DNS cells may overflow, but SERVICE padding shrinks so ACTION stays aligned
         cli = load_cli()
-        long_request = {"source": "browser", "source_label": "blue", "dst": "34.107.221.82", "proto": "tcp", "dport": 80, "host": "DNS very-long-updates-subdomain.signal.org"}
-        normal_request = {"source": "browser", "source_label": "blue", "dst": "151.101.2.132", "proto": "tcp", "dport": 80, "host": "DNS deb.debian.org"}
+        long_request = {"source": "browser", "source_label": "blue", "dst": "34.107.221.82", "proto": "tcp", "dport": 80, "host": "A very-long-updates-subdomain.signal.org"}
+        normal_request = {"source": "browser", "source_label": "blue", "dst": "151.101.2.132", "proto": "tcp", "dport": 80, "host": "A deb.debian.org"}
 
         long_line = cli.packet_line(long_request, PROMPT_CONFIG)
         normal_line = cli.packet_line(normal_request, PROMPT_CONFIG)

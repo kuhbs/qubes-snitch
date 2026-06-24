@@ -108,9 +108,14 @@ def dns_reject_payload(payload, request):
     if src_ip.version != 4 or dst_ip.version != 4:
         raise ValueError("non-IPv4 is unsupported")
     total_length = 20 + len(udp_packet)
-    # Build a fresh IPv4 header; rewriting the original forward-path query would send the reply the wrong way
-    header_without_checksum = struct.pack("!BBHHHBBH4s4s", 0x45, 0, total_length, 0, 0, 64, socket.IPPROTO_UDP, 0, src_ip.packed, dst_ip.packed)
-    header = struct.pack("!BBHHHBBH4s4s", 0x45, 0, total_length, 0, 0, 64, socket.IPPROTO_UDP, inet_checksum(header_without_checksum), src_ip.packed, dst_ip.packed)
+    query_id = 0
+    reply_flags = 0
+    if len(payload) >= 8:
+        query_id = struct.unpack("!H", payload[4:6])[0]
+        reply_flags = struct.unpack("!H", payload[6:8])[0] & 0x4000
+    # Build a fresh IPv4 header with the query ID and DF bit so clients see a normal-looking UDP reply
+    header_without_checksum = struct.pack("!BBHHHBBH4s4s", 0x45, 0, total_length, query_id, reply_flags, 64, socket.IPPROTO_UDP, 0, src_ip.packed, dst_ip.packed)
+    header = struct.pack("!BBHHHBBH4s4s", 0x45, 0, total_length, query_id, reply_flags, 64, socket.IPPROTO_UDP, inet_checksum(header_without_checksum), src_ip.packed, dst_ip.packed)
     return header + udp_packet
 
 

@@ -140,20 +140,11 @@ def is_dns_transport(request):
     return request.get("proto") == "udp" and str(request.get("dport")) == "53"
 
 
-def strip_host_prefix(host):
-    # DNS/PTR prefixes describe how a name was found; resolver rows show only the resolver name
-    if host.startswith("DNS "):
-        return host[4:]
-    if host.startswith("PTR "):
-        return host[4:]
-    return host
-
-
 def resolver_dns_name(request):
-    # Qubes internal resolvers are stable names even when PTR is unavailable
+    # Qubes internal resolvers are stable names; other resolver names keep their A/PTR trust prefix
     if request["dst"] in QUBES_INTERNAL_DNS:
         return QUBES_INTERNAL_DNS[request["dst"]]
-    return strip_host_prefix(host_text(request))
+    return host_text(request)
 
 
 def dns_traffic_color(config, request):
@@ -167,11 +158,8 @@ def dns_text(request):
     # Qubes internal DNS has fixed names, so show them even when no PTR exists
     if request["dst"] in QUBES_INTERNAL_DNS:
         return QUBES_INTERNAL_DNS[request["dst"]]
-    # DNS-cache names are stronger than PTR; no readable name is explicitly red as no PTR
-    host = host_text(request)
-    if host.startswith("DNS "):
-        return host[4:]
-    return host
+    # A-cache names are stronger than PTR; keep the prefix visible so trust level is obvious
+    return host_text(request)
 
 
 def dns_color(config, request):
@@ -182,7 +170,7 @@ def dns_color(config, request):
     host = request.get("host")
     if not host:
         return UNLISTED_PROTOCOL_COLOR
-    if host.startswith("DNS "):
+    if host.startswith("A "):
         return ENCRYPTED_PROTOCOL_COLOR
     if host.startswith("PTR "):
         return UNENCRYPTED_PROTOCOL_COLOR

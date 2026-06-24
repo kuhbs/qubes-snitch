@@ -69,6 +69,8 @@ eggs/
 lib/
 !templates/usr/lib/
 !templates/usr/lib/**
+!templates/dom0/usr/local/lib/
+!templates/dom0/usr/local/lib/**
 lib64/
 parts/
 sdist/

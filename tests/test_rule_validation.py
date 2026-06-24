@@ -44,6 +44,17 @@ class RuleValidationTests(unittest.TestCase):
 
         snitchd.config.validate_rule_file(Path("app-signal.yml"), data)
 
+    def test_rule_file_rejects_all_ipv4_cidr_destination(self):
+        # Broad destination policy must use Snitch's explicit any spelling, not an all-IPv4 CIDR
+        snitchd = load_snitchd()
+        data = {
+            "rules4": [{"ptr": "any", "dest": "0.0.0.0/0", "proto": "tcp", "port": "443", "action": "allow"}],
+            "dns": [],
+        }
+
+        with self.assertRaisesRegex(SystemExit, "use dest: any"):
+            snitchd.config.validate_rule_file(Path("app-signal.yml"), data)
+
     def test_append_flow_rule_rejects_tcp_udp_port_zero(self):
         # Port 0 is not a real TCP/UDP destination port and must not persist as port:any
         snitchd = load_snitchd()

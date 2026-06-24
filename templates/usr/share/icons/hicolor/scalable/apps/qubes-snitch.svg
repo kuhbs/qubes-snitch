@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="KUHBS firewall logo with original cow logo centered and flat brick wall edges at the sides">
+  <g aria-label="left red brick wall edge">
+<rect x="0" y="0" width="64" height="1024" fill="#d71920"/>
+<line x1="0" y1="64" x2="64" y2="64" stroke="#ffffff" stroke-width="5"/>
+<line x1="0" y1="128" x2="64" y2="128" stroke="#ffffff" stroke-width="5"/>
+<line x1="0" y1="192" x2="64" y2="192" stroke="#ffffff" stroke-width="5"/>
+<line x1="0" y1="256" x2="64" y2="256" stroke="#ffffff" stroke-width="5"/>
+<line x1="0" y1="320" x2="64" y2="320" stroke="#ffffff" stroke-width="5"/>
+<line x1="0" y1="384" x2="64" y2="384" stroke="#ffffff" stroke-width="5"/>
+<line x1="0" y1="448" x2="64" y2="448" stroke="#ffffff" stroke-width="5"/>
+<line x1="0" y1="512" x2="64" y2="512" stroke="#ffffff" stroke-width="5"/>
+<line x1="0" y1="576" x2="64" y2="576" stroke="#ffffff" stroke-width="5"/>
+<line x1="0" y1="640" x2="64" y2="640" stroke="#ffffff" stroke-width="5"/>
+<line x1="0" y1="704" x2="64" y2="704" stroke="#ffffff" stroke-width="5"/>
+<line x1="0" y1="768" x2="64" y2="768" stroke="#ffffff" stroke-width="5"/>
+<line x1="0" y1="832" x2="64" y2="832" stroke="#ffffff" stroke-width="5"/>
+<line x1="0" y1="896" x2="64" y2="896" stroke="#ffffff" stroke-width="5"/>
+<line x1="0" y1="960" x2="64" y2="960" stroke="#ffffff" stroke-width="5"/>
+<line x1="32.0" y1="0" x2="32.0" y2="64" stroke="#ffffff" stroke-width="4"/>
+<line x1="21.333333333333332" y1="64" x2="21.333333333333332" y2="128" stroke="#ffffff" stroke-width="4"/>
+<line x1="42.666666666666664" y1="64" x2="42.666666666666664" y2="128" stroke="#ffffff" stroke-width="4"/>
+<line x1="32.0" y1="128" x2="32.0" y2="192" stroke="#ffffff" stroke-width="4"/>
+<line x1="21.333333333333332" y1="192" x2="21.333333333333332" y2="256" stroke="#ffffff" stroke-width="4"/>
+<line x1="42.666666666666664" y1="192" x2="42.666666666666664" y2="256" stroke="#ffffff" stroke-width="4"/>
+<line x1="32.0" y1="256" x2="32.0" y2="320" stroke="#ffffff" stroke-width="4"/>
+<line x1="21.333333333333332" y1="320" x2="21.333333333333332" y2="384" stroke="#ffffff" stroke-width="4"/>
+<line x1="42.666666666666664" y1="320" x2="42.666666666666664" y2="384" stroke="#ffffff" stroke-width="4"/>
+<line x1="32.0" y1="384" x2="32.0" y2="448" stroke="#ffffff" stroke-width="4"/>
+<line x1="21.333333333333332" y1="448" x2="21.333333333333332" y2="512" stroke="#ffffff" stroke-width="4"/>
+<line x1="42.666666666666664" y1="448" x2="42.666666666666664" y2="512" stroke="#ffffff" stroke-width="4"/>
+<line x1="32.0" y1="512" x2="32.0" y2="576" stroke="#ffffff" stroke-width="4"/>
+<line x1="21.333333333333332" y1="576" x2="21.333333333333332" y2="640" stroke="#ffffff" stroke-width="4"/>
+<line x1="42.666666666666664" y1="576" x2="42.666666666666664" y2="640" stroke="#ffffff" stroke-width="4"/>
+<line x1="32.0" y1="640" x2="32.0" y2="704" stroke="#ffffff" stroke-width="4"/>
+<line x1="21.333333333333332" y1="704" x2="21.333333333333332" y2="768" stroke="#ffffff" stroke-width="4"/>
+<line x1="42.666666666666664" y1="704" x2="42.666666666666664" y2="768" stroke="#ffffff" stroke-width="4"/>
+<line x1="32.0" y1="768" x2="32.0" y2="832" stroke="#ffffff" stroke-width="4"/>
+<line x1="21.333333333333332" y1="832" x2="21.333333333333332" y2="896" stroke="#ffffff" stroke-width="4"/>
+<line x1="42.666666666666664" y1="832" x2="42.666666666666664" y2="896" stroke="#ffffff" stroke-width="4"/>
+<line x1="32.0" y1="896" x2="32.0" y2="960" stroke="#ffffff" stroke-width="4"/>
+<line x1="21.333333333333332" y1="960" x2="21.333333333333332" y2="1024" stroke="#ffffff" stroke-width="4"/>
+<line x1="42.666666666666664" y1="960" x2="42.666666666666664" y2="1024" stroke="#ffffff" stroke-width="4"/>
+<line x1="64" y1="0" x2="64" y2="1024" stroke="rgba(0,0,0,0.20)" stroke-width="4"/>
+</g>
+
+  <image href="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBzdGFuZGFsb25lPSJubyI/Pgo8IURPQ1RZUEUgc3ZnIFBVQkxJQyAiLS8vVzNDLy9EVEQgU1ZHIDIwMDEwOTA0Ly9FTiIKICJodHRwOi8vd3d3LnczLm9yZy9UUi8yMDAxL1JFQy1TVkctMjAwMTA5MDQvRFREL3N2ZzEwLmR0ZCI+CjxzdmcgdmVyc2lvbj0iMS4wIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciCiB3aWR0aD0iMTE1LjAwMDAwMHB0IiBoZWlnaHQ9IjYzLjAwMDAwMHB0IiB2aWV3Qm94PSIwIDAgMTE1LjAwMDAwMCA2My4wMDAwMDAiCiBwcmVzZXJ2ZUFzcGVjdFJhdGlvPSJ4TWlkWU1pZCBtZWV0Ij4KPG1ldGFkYXRhPgpDcmVhdGVkIGJ5IHBvdHJhY2UgMS4xNiwgd3JpdHRlbiBieSBQZXRlciBTZWxpbmdlciAyMDAxLTIwMTkKPC9tZXRhZGF0YT4KPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMC4wMDAwMDAsNjMuMDAwMDAwKSBzY2FsZSgwLjEwMDAwMCwtMC4xMDAwMDApIgpmaWxsPSIjNjQwMEE4IiBzdHJva2U9Im5vbmUiPgo8cGF0aCBkPSJNMTA0MiA1OTggYy0xMiAtMTggLTQxIC01MiAtNjYgLTc1IGwtNDUgLTQyIDI5IC0yMSBjMTcgLTEyIDM0IC0xOAo0MCAtMTUgMjggMTcgODkgMTg1IDY3IDE4NSAtMyAwIC0xNCAtMTUgLTI1IC0zMnoiLz4KPHBhdGggZD0iTTg4MiA1NjAgYy0zMCAtMzMgLTU3IC03MyAtNjEgLTg4IC00IC0xNSAtNSAtNzIgLTMgLTEyNyBsNCAtMTAwCjExNCAtMjYgYzYzIC0xNCAxMTQgLTIyIDExNCAtMTggMCA1IDYgNiAxNCAzIDM1IC0xMyA4NiAzNiA4NiA4MiAwIDU5IC02NCAzMQotNzYgLTM0IC00IC0yMCAtOSAtMzEgLTExIC0yNSAtOSAyNCAxOCA4MCA0MiA5MSAzMiAxNSAzMSAyNSAtNCA0MyAtNjEgMzAKLTIwMCAxMjUgLTIwMSAxMzYgMCA2IDkgMzMgMjAgNTkgMTEgMjYgMTkgNTEgMTggNTYgLTIgNSAtMjcgLTE5IC01NiAtNTJ6Cm03OCAtMTk1IGMwIC04IC00IC0xNSAtOSAtMTUgLTEzIDAgLTIyIDE2IC0xNCAyNCAxMSAxMSAyMyA2IDIzIC05eiBtMTYwIC04NQpjMCAtNSAtMiAtMTAgLTQgLTEwIC0zIDAgLTggNSAtMTEgMTAgLTMgNiAtMSAxMCA0IDEwIDYgMCAxMSAtNCAxMSAtMTB6Ii8+CjxwYXRoIGQ9Ik0zOTUgNDgxIGwtMTIwIC01OCA2MCAtMjcgYzMzIC0xNSA5MSAtNDEgMTI4IC01OCBsNjggLTMyIDEyMCA1OQpjNjUgMzMgMTE1IDYyIDExMSA2NiAtMTAgOSAtMjMxIDEwOSAtMjQwIDEwOCAtNCAwIC02MSAtMjYgLTEyNyAtNTh6Ii8+CjxwYXRoIGQ9Ik02NjMgMzQ2IGwtMTIzIC02MSAwIC0xNDIgYzAgLTc5IDIgLTE0MyA0IC0xNDMgMyAwIDQ0IDE5IDkyIDQxIDQ4CjIzIDEwNCA0NyAxMjMgNTQgbDM2IDEyIDAgMTM3IGMwIDc1IC0yIDE0MiAtNSAxNTAgLTQgMTAgLTM1IC0xIC0xMjcgLTQ4eiIvPgo8cGF0aCBkPSJNMjU0IDM4NCBjMyAtOSA2IC03NCA2IC0xNDUgbDAgLTEzMCAzOCAtMTUgYzIwIC05IDc2IC0zMyAxMjUgLTU1CjQ4IC0yMSA4OSAtMzkgOTIgLTM5IDMgMCA1IDY1IDUgMTQ0IGwwIDE0MyAtMTIzIDU3IGMtMTMxIDYwIC0xNTMgNjYgLTE0MyA0MHoiLz4KPHBhdGggZD0iTTE4OCAzMjkgYy0yNSAtMTIgLTM4IC0yNyAtMzggLTM5IDAgLTI1IDYgLTI1IDM3IDAgMTQgMTEgMzEgMjAgMzgKMjAgMTEgMCAyNSAyMSAyNSAzNiAwIDkgLTI3IDIgLTYyIC0xN3oiLz4KPHBhdGggZD0iTTYyIDI4MyBjLTEwIC0xMCAtMjkgLTM1IC00MSAtNTUgbC0yMyAtMzggNDkgMCBjMjcgMCA1NyA2IDY2IDEzIDI1CjE5IDMxIDYxIDEyIDgxIC0yMSAyMSAtMzggMjAgLTYzIC0xeiIvPgo8L2c+Cjwvc3ZnPgo="
+         x="252.00" y="369.57"
+         width="520.00" height="284.87"
+         preserveAspectRatio="xMidYMid meet" />
+
+  <g aria-label="right green brick wall edge">
+<rect x="960" y="0" width="64" height="1024" fill="#148a20"/>
+<line x1="960" y1="64" x2="1024" y2="64" stroke="#ffffff" stroke-width="5"/>
+<line x1="960" y1="128" x2="1024" y2="128" stroke="#ffffff" stroke-width="5"/>
+<line x1="960" y1="192" x2="1024" y2="192" stroke="#ffffff" stroke-width="5"/>
+<line x1="960" y1="256" x2="1024" y2="256" stroke="#ffffff" stroke-width="5"/>
+<line x1="960" y1="320" x2="1024" y2="320" stroke="#ffffff" stroke-width="5"/>
+<line x1="960" y1="384" x2="1024" y2="384" stroke="#ffffff" stroke-width="5"/>
+<line x1="960" y1="448" x2="1024" y2="448" stroke="#ffffff" stroke-width="5"/>
+<line x1="960" y1="512" x2="1024" y2="512" stroke="#ffffff" stroke-width="5"/>
+<line x1="960" y1="576" x2="1024" y2="576" stroke="#ffffff" stroke-width="5"/>
+<line x1="960" y1="640" x2="1024" y2="640" stroke="#ffffff" stroke-width="5"/>
+<line x1="960" y1="704" x2="1024" y2="704" stroke="#ffffff" stroke-width="5"/>
+<line x1="960" y1="768" x2="1024" y2="768" stroke="#ffffff" stroke-width="5"/>
+<line x1="960" y1="832" x2="1024" y2="832" stroke="#ffffff" stroke-width="5"/>
+<line x1="960" y1="896" x2="1024" y2="896" stroke="#ffffff" stroke-width="5"/>
+<line x1="960" y1="960" x2="1024" y2="960" stroke="#ffffff" stroke-width="5"/>
+<line x1="992.0" y1="0" x2="992.0" y2="64" stroke="#ffffff" stroke-width="4"/>
+<line x1="981.3333333333334" y1="64" x2="981.3333333333334" y2="128" stroke="#ffffff" stroke-width="4"/>
+<line x1="1002.6666666666666" y1="64" x2="1002.6666666666666" y2="128" stroke="#ffffff" stroke-width="4"/>
+<line x1="992.0" y1="128" x2="992.0" y2="192" stroke="#ffffff" stroke-width="4"/>
+<line x1="981.3333333333334" y1="192" x2="981.3333333333334" y2="256" stroke="#ffffff" stroke-width="4"/>
+<line x1="1002.6666666666666" y1="192" x2="1002.6666666666666" y2="256" stroke="#ffffff" stroke-width="4"/>
+<line x1="992.0" y1="256" x2="992.0" y2="320" stroke="#ffffff" stroke-width="4"/>
+<line x1="981.3333333333334" y1="320" x2="981.3333333333334" y2="384" stroke="#ffffff" stroke-width="4"/>
+<line x1="1002.6666666666666" y1="320" x2="1002.6666666666666" y2="384" stroke="#ffffff" stroke-width="4"/>
+<line x1="992.0" y1="384" x2="992.0" y2="448" stroke="#ffffff" stroke-width="4"/>
+<line x1="981.3333333333334" y1="448" x2="981.3333333333334" y2="512" stroke="#ffffff" stroke-width="4"/>
+<line x1="1002.6666666666666" y1="448" x2="1002.6666666666666" y2="512" stroke="#ffffff" stroke-width="4"/>
+<line x1="992.0" y1="512" x2="992.0" y2="576" stroke="#ffffff" stroke-width="4"/>
+<line x1="981.3333333333334" y1="576" x2="981.3333333333334" y2="640" stroke="#ffffff" stroke-width="4"/>
+<line x1="1002.6666666666666" y1="576" x2="1002.6666666666666" y2="640" stroke="#ffffff" stroke-width="4"/>
+<line x1="992.0" y1="640" x2="992.0" y2="704" stroke="#ffffff" stroke-width="4"/>
+<line x1="981.3333333333334" y1="704" x2="981.3333333333334" y2="768" stroke="#ffffff" stroke-width="4"/>
+<line x1="1002.6666666666666" y1="704" x2="1002.6666666666666" y2="768" stroke="#ffffff" stroke-width="4"/>
+<line x1="992.0" y1="768" x2="992.0" y2="832" stroke="#ffffff" stroke-width="4"/>
+<line x1="981.3333333333334" y1="832" x2="981.3333333333334" y2="896" stroke="#ffffff" stroke-width="4"/>
+<line x1="1002.6666666666666" y1="832" x2="1002.6666666666666" y2="896" stroke="#ffffff" stroke-width="4"/>
+<line x1="992.0" y1="896" x2="992.0" y2="960" stroke="#ffffff" stroke-width="4"/>
+<line x1="981.3333333333334" y1="960" x2="981.3333333333334" y2="1024" stroke="#ffffff" stroke-width="4"/>
+<line x1="1002.6666666666666" y1="960" x2="1002.6666666666666" y2="1024" stroke="#ffffff" stroke-width="4"/>
+<line x1="960" y1="0" x2="960" y2="1024" stroke="rgba(0,0,0,0.20)" stroke-width="4"/>
+</g>
+</svg>

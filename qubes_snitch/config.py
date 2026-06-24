@@ -293,6 +293,8 @@ def validate_rule_file(path, data):
                 raise SystemExit(f"{path}: invalid destination: {rule['dest']}")
             if network.version != 4:
                 raise SystemExit(f"{path}: rules4 contains non-IPv4 destination")
+            if str(network) == "0.0.0.0/0":
+                raise SystemExit(f"{path}: use dest: any instead of 0.0.0.0/0")
         if proto not in ("tcp", "udp") and rule["port"] != "any":
             raise SystemExit(f"{path}: only tcp and udp rules may specify ports")
         try:

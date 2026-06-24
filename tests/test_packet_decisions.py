@@ -72,7 +72,7 @@ class PacketDecisionTests(unittest.TestCase):
             ("syslog", snitchd.syslog.LOG_INFO, "QUBES-SNITCH browser reject DNS SRC=10.137.0.42 DST=10.139.1.1 QTYPE=A QNAME=example.com REASON=rule"),
             ("socket", snitchd.socket.AF_INET, snitchd.socket.SOCK_RAW, snitchd.socket.IPPROTO_RAW),
             ("setsockopt", (snitchd.socket.IPPROTO_IP, snitchd.socket.IP_HDRINCL, 1)),
-            ("sendto", b"local-dns-reject", ("10.137.0.42", 0)),
+            ("sendto", b"local-dns-reject", ("10.137.0.42", 53000)),
             ("close", None),
             ("drop", None),
         ])

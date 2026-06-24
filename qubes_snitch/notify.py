@@ -6,6 +6,9 @@ import subprocess
 from qubes_snitch.display import safe_text
 
 
+SNITCH_ICON = "/usr/share/icons/hicolor/scalable/apps/qubes-snitch.svg"
+
+
 def request_text(request):
     # Immediate queue notifications use packet-known fields; CLI still shows DNS/PTR-enriched detail later
     source = safe_text(request.get("display_source", request["source"]))
@@ -22,7 +25,8 @@ def alert_notify(request, config, user, display, runtime_dir, dbus):
     subprocess.run([
         "runuser", "-u", user, "--",
         "env", f"DISPLAY={display}", f"XDG_RUNTIME_DIR={runtime_dir}", f"DBUS_SESSION_BUS_ADDRESS={dbus}",
-        "notify-send", f"--expire-time={config['notify_send_timeout']}", "QUBES-SNITCH", request_text(request),
+        # Use the installed Snitch SVG directly so notify-send does not depend on icon-theme cache freshness
+        "notify-send", f"--icon={SNITCH_ICON}", f"--expire-time={config['notify_send_timeout']}", "QUBES-SNITCH", request_text(request),
     ], check=True, timeout=1)
 
 
@@ -31,5 +35,6 @@ def security_notify(message, config, user, display, runtime_dir, dbus):
     subprocess.run([
         "runuser", "-u", user, "--",
         "env", f"DISPLAY={display}", f"XDG_RUNTIME_DIR={runtime_dir}", f"DBUS_SESSION_BUS_ADDRESS={dbus}",
-        "notify-send", "-u", "critical", "--expire-time=0", "QUBES-SNITCH SECURITY", safe_text(message, limit=300),
+        # Security popups use the same icon so urgent daemon failures are visually tied to Snitch
+        "notify-send", f"--icon={SNITCH_ICON}", "-u", "critical", "--expire-time=0", "QUBES-SNITCH SECURITY", safe_text(message, limit=300),
     ], check=True, timeout=1)

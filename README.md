@@ -23,14 +23,14 @@ At the prompt, press `a` to allow or `r` to reject. The uppercase letter in `[a/
 - `Q`: pending question count, terminal default color
 - `SOURCE`: VM that created the traffic, colored with the VM's Qubes label color
 - `TARGET`: IP being contacted
-- `DNS`: resolver name, queried name, DNS-cache name, PTR name, or `no PTR`
+- `DNS`: resolver name, queried name, `A` DNS-cache hint, `PTR` reverse-DNS hint, or `no PTR`
 - `SERVICE`: protocol/port or DNS query type
 - `ACTION`: available decision keys and optional typed answer, terminal default color
 
 ### Color Rules
 
 - Normal IP traffic keeps `TARGET` in the terminal default color, because an IP alone is not good or bad
-- DNS-cache names are green. This means the VM asked DNS for this name, and then connected to an IP returned for that name
+- DNS-cache names are green and shown as `A name`. This means Qubes-Snitch resolved an allowed A/CNAME DNS rule and the VM connected to an IP returned for that name
 - PTR-only names are yellow and shown as `PTR name`. This means Qubes-Snitch did not see a matching DNS request from the VM, but reverse DNS for the IP returned a name
 - Missing DNS/PTR names are red and shown as `no PTR`. This means Qubes-Snitch has no readable name for the IP from the DNS cache, and no PTR record exists for this IP
 - Normal services use `prompt_protocol_colors` from `config.yml`: encrypted is green, unencrypted is yellow, unlisted is red
@@ -53,7 +53,7 @@ Qubes OS internal DNS names are hardcoded in Qubes-Snitch:
 
 ![Qubes internal DNS resolver 2](screenshots/qubes-dns-2-resolver.png)
 
-`signal` wants to connect to external DNS server `8.8.8.8` (`dns.google`) on `domain 53/udp`, so `TARGET`, `DNS`, and `SERVICE` are red.
+`signal` wants to connect to external DNS server `8.8.8.8` (`PTR dns.google`) on `domain 53/udp`, so `TARGET`, `DNS`, and `SERVICE` are red.
 
 ![External DNS resolver](screenshots/external-dns-resolver.png)
 
@@ -65,15 +65,15 @@ Qubes OS internal DNS names are hardcoded in Qubes-Snitch:
 
 ![DNS A query](screenshots/dns-a-query.png)
 
-`signal` wants to connect to `104.18.2.166`; Qubes-Snitch has a DNS-cache match for `updates.signal.org`, and `https 443/tcp` is listed as encrypted, so `DNS` and `SERVICE` are green while `TARGET` stays in the terminal default color.
+`signal` wants to connect to `104.18.2.166`; Qubes-Snitch has an `A updates.signal.org` DNS-cache match, and `https 443/tcp` is listed as encrypted, so `DNS` and `SERVICE` are green while `TARGET` stays in the terminal default color.
 
 ![DNS cache with encrypted HTTPS service](screenshots/dns-cache-https-encrypted.png)
 
-`signal` wants to connect to `151.101.2.132`; Qubes-Snitch has a DNS-cache match for `deb.debian.org`, but `http 80/tcp` is listed as unencrypted, so `DNS` is green and `SERVICE` is yellow while `TARGET` stays in the terminal default color.
+`signal` wants to connect to `151.101.2.132`; Qubes-Snitch has an `A deb.debian.org` DNS-cache match, but `http 80/tcp` is listed as unencrypted, so `DNS` is green and `SERVICE` is yellow while `TARGET` stays in the terminal default color.
 
 ![DNS cache with unencrypted HTTP service](screenshots/dns-cache-http-unencrypted.png)
 
-`signal` wants to connect to `203.0.113.10`; Qubes-Snitch only has PTR name `mail.example.com`, so `DNS` is yellow. `imaps 993/tcp` is listed as encrypted, so `SERVICE` is green while `TARGET` stays in the terminal default color.
+`signal` wants to connect to `203.0.113.10`; Qubes-Snitch only has `PTR mail.example.com`, so `DNS` is yellow. `imaps 993/tcp` is listed as encrypted, so `SERVICE` is green while `TARGET` stays in the terminal default color.
 
 ![PTR with encrypted IMAPS service](screenshots/ptr-imaps-encrypted.png)
 
@@ -104,6 +104,8 @@ less install-dom0.sh
 ```
 
 The dom0 installer clones the current repository into `tpl-qubes-snitch` and runs that checkout's `install.sh` as root inside the template. If you need a pinned supply-chain review, review or pin the cloned repository contents too, not only this wrapper script.
+
+The default firewall VM name is set by `SNITCH_VM=sys-snitch` near the top of `install-dom0.sh`. If you want a different name, edit that field before running the installer so the VM, qrexec policy, and dom0 source-filter service all use the same name.
 
 The installer creates `tpl-qubes-snitch` and `sys-snitch`, installs Qubes-Snitch into the template, installs the dom0 `qubes.SnitchSources` qrexec service, and enables the required Qubes ProxyVM services:
 
@@ -150,7 +152,7 @@ systemctl restart qubes-snitchd.service
 
 DNS decisions are shown by domain when regular UDP DNS queries are detected. The connection to the DNS server itself is still a network decision too, so DNS can ask twice: once for the resolver connection, and then again for the domain. DNS-over-TCP is only a normal TCP/53 network decision; reject TCP/53 if you do not want clients to use it.
 
-When a DNS domain question has no saved rule yet, Qubes-Snitch queues the prompt and rejects that one packet instead of answering DNS `REFUSED`. The client sees normal UDP loss. If you allow the domain before the client retries, the retry reaches the resolver. For allowed A rules, Qubes-Snitch also performs its own resolver lookup to populate the TTL-based display cache.
+When a DNS domain question has no saved rule yet, Qubes-Snitch queues the prompt and drops that one packet instead of answering DNS `REFUSED`. The client sees normal UDP loss. If you allow the domain before the client retries, the retry reaches the resolver. For allowed A rules, Qubes-Snitch also performs its own resolver lookup to populate the TTL-based display cache.
 
 ```text
 Q          SOURCE             TARGET                    DNS                                        SERVICE                ACTION
@@ -162,9 +164,9 @@ DNS is complex: the protocol has many record types, classes, opcodes, optional s
 
 Supported DNS questions must be UDP/53, no more than 1232 bytes, opcode QUERY, class IN, exactly one question, no answer/authority/real additional sections, EDNS with at most one OPT pseudo-record, a normal ASCII domain name, and one of these exact qtype names: A, CNAME, MX, TXT, SRV, PTR, CAA, NS, SOA, HTTPS, SVCB, NAPTR, DS, DNSKEY, RRSIG, NSEC, NSEC3. One EDNS OPT record may contain multiple EDNS options. Live AAAA questions get REFUSED without prompt because Qubes-Snitch is IPv4-only. ANY, AXFR, IXFR, non-IN classes, unknown qtypes, generic qtype aliases such as `TYPE1`, numeric qtypes, invalid names, oversized DNS bodies, multi-question packets, multiple EDNS OPT records, and malformed DNS are rejected without YAML rules.
 
-For new supported DNS questions with no rule, Qubes-Snitch rejects the current queued packet with the NFQUEUE drop verdict, queues a prompt, and lets the client retry naturally after the rule is saved. It does not synthesize successful DNS answers. Resolver replies are not parsed. After an A rule is allowed, Qubes-Snitch does its own A lookup through `/etc/resolv.conf` and stores the result as a RAM-only display hint keyed by source VM and answer IP.
+For new supported DNS questions with no rule, Qubes-Snitch drops the current queued packet with the NFQUEUE drop verdict, queues a prompt, and lets the client retry naturally after the rule is saved. It does not synthesize successful DNS answers. Resolver replies are not parsed. After an A rule is allowed, Qubes-Snitch does its own A lookup through `/etc/resolv.conf` and stores the result as a RAM-only display hint keyed by source VM and answer IP.
 
-This cache is only a display hint for later network prompts. If `browser` allowed `turn.cloudflare.com A` and Qubes-Snitch's own lookup returned `141.101.90.1`, then a later connection to `141.101.90.1` can show `turn.cloudflare.com` in the `DNS` column.
+This cache is only a display hint for later network prompts. If `browser` allowed `turn.cloudflare.com A` and Qubes-Snitch's own lookup returned `141.101.90.1`, then a later connection to `141.101.90.1` can show `A turn.cloudflare.com` in the `DNS` column.
 
 The saved rule still uses the IP address, protocol and port. Qubes-Snitch never writes hostnames into nftables matching rules:
 
@@ -187,7 +189,7 @@ Rules are checked from top to bottom. Put specific rejects before broad allows.
 
 `ptr` is a human-readable note. Qubes-Snitch writes the known destination name there when it creates a rule, but matching only uses `dest`, `proto`, and `port`.
 
-Use `any` for all destinations or all ports. Destinations may also be one IP or one CIDR network. TCP/UDP ports must be quoted strings: numbers like `"443"`, numeric ranges like `"8000-8999"`, `"any"`, or names from `/etc/services`, including hyphenated names such as `"domain-s"`. Protocols must be written as names: `tcp`, `udp`, or `icmp`. Numeric protocol strings such as `"6"`, `"17"`, `"06"`, or `"99"` are rejected.
+Use `any` for all destinations or all ports. Destinations may also be one IP or one CIDR network, but use `any` instead of `0.0.0.0/0` for all IPv4 destinations. TCP/UDP ports must be quoted strings: numbers like `"443"`, numeric ranges like `"8000-8999"`, `"any"`, or names from `/etc/services`, including hyphenated names such as `"domain-s"`. Protocols must be written as names: `tcp`, `udp`, or `icmp`. Numeric protocol strings such as `"6"`, `"17"`, `"06"`, or `"99"` are rejected.
 
 ICMP rules currently match ICMP as a protocol only. Qubes-Snitch does not distinguish ICMP type/code, so allowing ICMP allows all ICMP to the matching destination.
 
@@ -344,7 +346,7 @@ Qubes-Snitch uses the word “reject” for the user-facing firewall decision: t
 
 ### Source VM Identity
 
-The most important security input is the source VM identity. Packets only contain source IP addresses, not Qube names. Qubes-Snitch therefore asks dom0 through the `qubes.SnitchSources` qrexec service for the live `VM name | IP address | label color | VM class | template` mapping. The qrexec service includes every VM row with an IP address, including paused VMs, so policy identity is ready before a paused VM unpauses on focus. Non-numbered generic default-DispVM rows are ignored so provider rows like `sys-firewall` or `sys-usb` cannot become durable policy sources.
+The most important security input is the source VM identity. Packets only contain source IP addresses, not Qube names. Qubes-Snitch therefore asks dom0 through the `qubes.SnitchSources` qrexec service for the live `VM name | IP address | label color | VM class | template` mapping. The qrexec service reads `/var/lib/qubes/qubes.xml` directly, resolves NetVM chains in memory, and returns only VMs whose NetVM chain routes through the Snitch VM. Non-numbered generic default-DispVM rows are ignored so provider rows like `sys-firewall` or `sys-usb` cannot become durable policy sources.
 
 If a packet arrives from a source IP that is not known, Qubes-Snitch rejects that packet and forces one fresh source lookup from dom0. If the IP is still unknown after that refresh, source identity is treated as broken. That should not happen in a healthy Qubes gateway. The daemon emits a `QUBES-SNITCH SECURITY ...` journal line, reports it with `notify-send -u critical --expire-time=0`, and exits so systemd marks it failed and keeps the fail-closed nftables table in place. Qubes-Snitch does not create prompts or rule files for raw unknown source IPs, because that would let the user save a policy decision for traffic that cannot be safely attributed to a Qube.
 
@@ -365,7 +367,7 @@ DNS has two separate jobs in Qubes-Snitch:
 - The UDP connection to the DNS resolver is normal network traffic and can be allowed or rejected like any other UDP flow
 - A normal UDP DNS question can also become a domain decision, for example `browser DNS A example.org`
 
-Forwarded TCP/UDP packets only contain IP addresses. DNS decisions are qname/qtype policy for outgoing UDP/53 queries. Resolver replies are not parsed by Qubes-Snitch. After an A-domain decision is allowed, Qubes-Snitch performs its own normal resolver lookup through `/etc/resolv.conf` and stores the answer as a RAM-only display hint from IP to hostname. For example, if `browser` allows `turn.cloudflare.com A` and Qubes-Snitch resolves it to `141.101.90.1`, a later connection to `141.101.90.1` can show `turn.cloudflare.com` in the `DNS` column.
+Forwarded TCP/UDP packets only contain IP addresses. DNS decisions are qname/qtype policy for outgoing UDP/53 queries. Resolver replies are not parsed by Qubes-Snitch. After an A-domain decision is allowed, Qubes-Snitch performs its own normal resolver lookup through `/etc/resolv.conf` and stores the answer as a RAM-only display hint from IP to hostname. For example, if `browser` allows `turn.cloudflare.com A` and Qubes-Snitch resolves it to `141.101.90.1`, a later connection to `141.101.90.1` can show `A turn.cloudflare.com` in the `DNS` column.
 
 This DNS cache is only a display hint. It does not auto-allow traffic, and saved nftables rules still match the concrete IP address, protocol, and port. The cache is scoped per source VM and expires at the DNS answer TTL returned by Qubes-Snitch's own lookup.
 
@@ -387,7 +389,7 @@ The prompt queue is bounded so a noisy VM cannot grow daemon memory forever. If 
 
 ### Synthetic DNS Replies for Normal Rejects
 
-For normal user-rejected DNS domains, Qubes-Snitch synthesizes a local DNS `REFUSED` response. This tells the client the query was refused by policy, so clients fail quickly instead of waiting for DNS timeouts and retries. This behavior is only used for saved reject decisions, not unanswered prompts. A new unanswered DNS question is queued for the user and the current packet is rejected with the NFQUEUE `drop` verdict without a DNS `REFUSED` reply, so the client sees ordinary UDP loss and can retry after the user allows it. Malformed DNS is also rejected with the NFQUEUE `drop` verdict.
+For normal user-rejected DNS domains, Qubes-Snitch synthesizes a local DNS `REFUSED` response. This tells the client the query was refused by policy, so clients fail quickly instead of waiting for DNS timeouts and retries. This behavior is only used for saved reject decisions, not unanswered prompts. A new unanswered DNS question is queued for the user and the current packet is dropped with the NFQUEUE `drop` verdict without a DNS `REFUSED` reply, so the client sees ordinary UDP loss and can retry after the user allows it. Malformed DNS is also dropped with the NFQUEUE `drop` verdict.
 
 ## Do Not Do These Things
 

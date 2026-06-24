@@ -42,6 +42,9 @@ class InstallLayoutTests(unittest.TestCase):
         self.assertIn("Terminal=false", desktop)
         self.assertIn("xfce4-terminal", install_script)
         self.assertIn("/usr/share/applications/qubes-snitch.desktop", install_script)
+        self.assertTrue((REPO / "templates/usr/share/icons/hicolor/scalable/apps/qubes-snitch.svg").exists())
+        self.assertIn("/usr/share/icons/hicolor/scalable/apps", install_script)
+        self.assertIn("templates/usr/share/icons/hicolor/scalable/apps/qubes-snitch.svg", install_script)
 
     def test_systemd_service_runs_in_qubes_proxyvm(self):
         # The daemon should only run in a network-providing ProxyVM, not in a plain AppVM/template
@@ -120,11 +123,18 @@ class InstallLayoutTests(unittest.TestCase):
         self.assertIn("qvm-appmenus --update --force \"$SNITCH_VM\"", installer)
         self.assertIn("qvm-shutdown --wait \"$SNITCH_TEMPLATE\"", installer)
         self.assertIn("Refer to README.md for how to continue from here", installer)
-        self.assertIn("qvm-ls --raw-data --fields NAME,IP,LABEL,CLASS,TEMPLATE", installer)
-        self.assertIn('[ "$name" = dom0 ] && continue', installer)
-        self.assertIn('[ -n "$ip" ] && [ "$ip" != "-" ] || continue', installer)
+        dom0_source_helper = REPO / "templates/dom0/usr/local/lib/qubes-snitch/sources.py"
+        self.assertTrue(dom0_source_helper.exists())
+        source_helper = dom0_source_helper.read_text(encoding="utf-8")
+        self.assertIn('qvm-run --pass-io --no-gui --user user "$SNITCH_TEMPLATE"', installer)
+        self.assertIn("templates/dom0/usr/local/lib/qubes-snitch/sources.py", installer)
+        self.assertIn("SNITCH_VM=$SNITCH_VM exec python3 /usr/local/lib/qubes-snitch/sources.py", installer)
+        self.assertIn('QUBES_XML = "/var/lib/qubes/qubes.xml"', source_helper)
+        self.assertIn("def vm_uses_snitch(name, netvms):", source_helper)
+        self.assertIn("ET.parse(QUBES_XML)", source_helper)
         self.assertIn("live dom0 qrexec lookup", readme)
         self.assertIn("VM name | IP address | label color | VM class | template", readme)
+        self.assertIn("SNITCH_VM=sys-snitch", readme)
         self.assertIn("qvm-run sys-snitch 'xfce4-terminal --command /usr/bin/qubes-snitch'", readme)
 
     def test_systemd_stop_post_fails_if_fail_closed_restore_fails(self):
@@ -140,4 +150,4 @@ class InstallLayoutTests(unittest.TestCase):
 
         self.assertIn("/usr/sbin/nft -f /usr/lib/qubes-snitch/fail-closed.nft || rc=$?", stop_post)
         self.assertIn('[ "$rc" -ne 0 ] || [ "$SERVICE_RESULT" != success ]', stop_post)
-        self.assertIn('notify-send -u critical', stop_post)
+        self.assertIn('notify-send --icon=/usr/share/icons/hicolor/scalable/apps/qubes-snitch.svg -u critical', stop_post)

@@ -2,6 +2,7 @@
 # Scope: keeps DNS-specific qname/qtype decisions separate from normal IP:port packet tests
 import unittest
 import types
+import struct
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -90,7 +91,7 @@ class DnsUdpTests(unittest.TestCase):
         self.assertEqual([event[0] for event in events].count("set_payload"), 0)
         sent = [event for event in events if event[0] == "sendto"][0]
         self.assertIn(b"dns-response-rcode-5-answers-0", sent[1])
-        self.assertEqual(sent[2], ("10.137.50.20", 0))
+        self.assertEqual(sent[2], ("10.137.50.20", 53000))
         self.assertEqual(events[-1], ("drop", None))
 
     def test_ip6_arpa_ptr_query_gets_refused_without_prompt_or_rule(self):
@@ -153,10 +154,12 @@ class DnsUdpTests(unittest.TestCase):
         snitchd = load_snitchd()
         request = {"body": b"query-a", "qtype": "A", "src": "10.137.50.20", "dst": "10.139.1.1", "sport": 53000, "dport": 53}
 
-        payload = snitchd.dns_reject_payload(b"payload", request)
+        payload = snitchd.dns_reject_payload(b"\x45\x00\x00\x28\x12\x34\x40\x00", request)
 
         self.assertIn(b"dns-response-rcode-5-answers-0", payload)
         self.assertNotIn(b"127.0.0.1", payload)
+        self.assertEqual(struct.unpack("!H", payload[4:6])[0], 0x1234)
+        self.assertEqual(struct.unpack("!H", payload[6:8])[0] & 0x4000, 0x4000)
 
     def test_allowed_a_rule_lazily_refreshes_display_hint(self):
         # DNS hints refresh in the CLI thread so NFQUEUE packet verdicts never wait on resolver I/O
@@ -175,7 +178,7 @@ class DnsUdpTests(unittest.TestCase):
             snitchd.policy_runtime.append_rule(snitchd.context(), dns_request, "allow")
             enriched = snitchd.dns_cache_runtime.enrich_prompt_request(snitchd.context(), flow_request)
 
-            self.assertEqual(enriched["host"], "DNS example.com")
+            self.assertEqual(enriched["host"], "A example.com")
 
     def test_allowed_a_rule_refresh_checks_later_rules(self):
         # Display hints must not depend on YAML rule order
@@ -206,7 +209,7 @@ class DnsUdpTests(unittest.TestCase):
 
         enriched = snitchd.dns_cache_runtime.enrich_prompt_request(snitchd.context(), flow_request)
 
-        self.assertEqual(enriched["host"], "DNS updates.signal.org")
+        self.assertEqual(enriched["host"], "A updates.signal.org")
         self.assertIn(("updates.signal.org", "A"), calls)
 
     def test_stale_dns_refresh_uses_configured_worker_limit(self):
@@ -252,7 +255,7 @@ class DnsUdpTests(unittest.TestCase):
         finally:
             snitchd.dns_cache_runtime.ThreadPoolExecutor = old_executor
 
-        self.assertEqual(enriched["host"], f"DNS {target}")
+        self.assertEqual(enriched["host"], f"A {target}")
         self.assertEqual(worker_counts, [32])
         self.assertEqual(len(submitted), 40)
 

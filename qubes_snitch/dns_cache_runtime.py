@@ -213,7 +213,7 @@ def lazy_dns_name(ctx, source, ip):
     if stale_rule:
         labels = refresh_dns_rule(ctx, source, stale_rule[0], stale_rule[1])
         if ip in labels:
-            return f"DNS {labels[ip]}"
+            return f"A {labels[ip]}"
     refresh_rules = []
     for qname, qtype in allowed_dns_hint_rules(ctx, source):
         if stale_rule == (qname, qtype):
@@ -223,10 +223,10 @@ def lazy_dns_name(ctx, source, ip):
             refresh_rules.append((qname, qtype))
             continue
         if ip in labels:
-            return f"DNS {labels[ip]}"
+            return f"A {labels[ip]}"
     for labels in refresh_dns_rules(ctx, source, refresh_rules):
         if ip in labels:
-            return f"DNS {labels[ip]}"
+            return f"A {labels[ip]}"
     return ptr_name(ip)
 
 
@@ -234,7 +234,7 @@ def cached_dns_name(ctx, source, ip):
     # Packet callbacks use only fresh cache hits, so they never block on resolver I/O
     label = fresh_response_label(ctx, source, ip)
     if label:
-        return f"DNS {label}"
+        return f"A {label}"
     return None
 
 

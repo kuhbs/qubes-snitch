@@ -78,7 +78,7 @@ def send_dns_refused(ctx, payload, request):
     try:
         # dns_reject_payload returns a complete IPv4 packet with its own IP header and UDP checksum
         sock.setsockopt(ctx.socket.IPPROTO_IP, ctx.socket.IP_HDRINCL, 1)
-        sock.sendto(reply, (request["src"], 0))
+        sock.sendto(reply, (request["src"], request["sport"]))
     finally:
         sock.close()
 
