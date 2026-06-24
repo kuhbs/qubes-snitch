@@ -336,7 +336,7 @@ class PacketDecisionTests(unittest.TestCase):
         snitchd.syslog.syslog = lambda *args: events.append(("syslog", *args))
         snitchd.notify.security_notify = lambda message, *_args: events.append(("notify", message))
         setattr(snitchd.packet_handlers, "queue_prompt", lambda _ctx, request: events.append(("queue", request)))
-        setattr(snitchd, "LOG_BUCKETS", {})
+        setattr(snitchd, "LOG_BUCKETS", snitchd.OrderedDict())
 
         snitchd.packet_handlers.handle_packet(snitchd.context(), packet)
 

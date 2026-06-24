@@ -12,21 +12,30 @@ from qubes_snitch.packets import request_port
 
 def log_allowed(ctx, key):
     # Token-bucket throttling keeps repeated Python syslog rejects from flooding journalctl
+    # Keys include packet details, so the table must be bounded like the prompt queue and DNS hint cache
     now = ctx.time.monotonic()
     count, seconds = config.parse_limit_rate(ctx.CONFIG["limit_rate"])
     burst = ctx.CONFIG["burst"]
+
+    # Missing keys start full so the first reject is visible immediately
     tokens, updated = ctx.LOG_BUCKETS.get(key, (burst, now))
     tokens = min(burst, tokens + ((now - updated) * count / seconds))
-    if tokens < 1:
-        ctx.LOG_BUCKETS[key] = (tokens, now)
-        return False
-    ctx.LOG_BUCKETS[key] = (tokens - 1, now)
-    return True
+    allowed = tokens >= 1
+
+    # Store suppressed logs too, otherwise a noisy source could reset the bucket by staying below one token
+    ctx.LOG_BUCKETS[key] = ((tokens - 1) if allowed else tokens, now)
+    ctx.LOG_BUCKETS.move_to_end(key)
+
+    # Evict oldest buckets first so unique attacker-chosen DNS names cannot grow daemon memory forever
+    while len(ctx.LOG_BUCKETS) > ctx.CONFIG["log_bucket_max_entries"]:
+        ctx.LOG_BUCKETS.popitem(last=False)
+    return allowed
 
 
 def log_dns_reject(ctx, request, reason):
-    # Domain reject logs include both packet endpoints and the DNS name/type that caused the verdict
-    key = (request["source"], "dns", request["qtype"], request["qname"], reason)
+    # Keep qname out of the throttle key so random rejected domains share one bounded source/type bucket
+    # The real qname is still printed in the log line that survives throttling
+    key = (request["source"], "dns", request["qtype"], reason)
     if not log_allowed(ctx, key):
         return
     source = safe_text(request.get("display_source", request["source"]))
@@ -69,7 +78,8 @@ def log_dns_formerr(ctx, request):
 
 def log_pending_reject(ctx, request):
     # Unknown traffic is rejected immediately but queued for the user so the next packet can be allowed after a decision
-    key = (*queue.question_key(request), "pending")
+    # Prompt dedupe already uses the exact question key, so log throttling only needs source and kind
+    key = (request["source"], request.get("kind", "net"), "pending")
     if not log_allowed(ctx, key):
         return
     if request.get("kind") == "dns":

@@ -32,6 +32,8 @@ RuntimeDirectoryMode=0750
 
 # Basic service sandboxing that should not interfere with Qubes qrexec, nftables, or local CLI sockets
 PrivateTmp=yes
+# The daemon does not need legacy process personality changes
+LockPersonality=yes
 ProtectClock=yes
 ProtectControlGroups=yes
 ProtectHostname=yes
@@ -39,7 +41,11 @@ ProtectKernelLogs=yes
 ProtectKernelModules=yes
 ProtectKernelTunables=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_NETLINK
+# The daemon should not create containers or new namespaces
+RestrictNamespaces=yes
 RestrictRealtime=yes
+# The daemon writes policy files, not privileged executables
+RestrictSUIDSGID=yes
 SystemCallArchitectures=native
 
 [Install]

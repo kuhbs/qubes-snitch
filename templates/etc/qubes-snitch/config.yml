@@ -33,6 +33,10 @@ default_disposable_vm_name: default-dvm
 limit_rate: 3/minute
 burst: 5
 
+# Keep this many distinct reject-log throttle buckets in daemon memory
+# DNS names and remote IPs can be attacker-chosen, so log throttling needs its own cap
+log_bucket_max_entries: 4096
+
 # Terminal prompt column widths in characters
 # Long target/DNS cells keep their full text and borrow padding from SERVICE when possible
 prompt_column_widths:

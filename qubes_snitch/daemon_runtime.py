@@ -1,6 +1,7 @@
 # Runtime wiring for qubes-snitchd
 # The executable imports this module; focused modules own source, policy, alert, DNS-cache, and packet logic
 
+from collections import OrderedDict
 import grp
 import os
 import signal
@@ -60,7 +61,9 @@ DNS_QNAME_CACHE = {}
 # NFQUEUE callbacks, CLI writes, and QubesDB refreshes share process memory, so locks protect publish points
 POLICY_LOCK = threading.Lock()
 DNS_CACHE_LOCK = threading.Lock()
-LOG_BUCKETS = {}
+
+# Reject-log throttling uses insertion order so old high-cardinality attacker keys can be evicted cheaply
+LOG_BUCKETS = OrderedDict()
 
 
 def context():

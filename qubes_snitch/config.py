@@ -133,9 +133,9 @@ def read_config(config_file):
     # config.yml is intentionally small: UI, queue sizes, DNS cache caps, default DispVM name, and log throttling only
     data = read_yaml(config_file)
     # Exact keys keep config review simple: a typo aborts instead of silently falling back to hidden Python defaults
-    expected = {"theme", "notify_send", "notify_send_timeout", "pending_queue_size", "dns_cache_max_per_source", "dns_cache_max_global", "dns_cache_refresh_workers", "default_disposable_vm_name", "limit_rate", "burst", "prompt_column_widths", "prompt_protocol_colors"}
+    expected = {"theme", "notify_send", "notify_send_timeout", "pending_queue_size", "dns_cache_max_per_source", "dns_cache_max_global", "dns_cache_refresh_workers", "default_disposable_vm_name", "limit_rate", "burst", "log_bucket_max_entries", "prompt_column_widths", "prompt_protocol_colors"}
     if set(data) != expected:
-        raise SystemExit(f"{config_file}: expected exactly theme, notify_send, notify_send_timeout, pending_queue_size, dns_cache_max_per_source, dns_cache_max_global, dns_cache_refresh_workers, default_disposable_vm_name, limit_rate, burst, prompt_column_widths, and prompt_protocol_colors")
+        raise SystemExit(f"{config_file}: expected exactly theme, notify_send, notify_send_timeout, pending_queue_size, dns_cache_max_per_source, dns_cache_max_global, dns_cache_refresh_workers, default_disposable_vm_name, limit_rate, burst, log_bucket_max_entries, prompt_column_widths, and prompt_protocol_colors")
     if data["theme"] not in ("dark", "light"):
         raise SystemExit(f"{config_file}: theme must be dark or light")
     if not isinstance(data["notify_send"], bool):
@@ -161,6 +161,9 @@ def read_config(config_file):
         raise SystemExit(f"{config_file}: limit rate {error}")
     if not isinstance(data["burst"], int) or isinstance(data["burst"], bool) or not 1 <= data["burst"] <= 10000:
         raise SystemExit(f"{config_file}: burst must be an integer from 1 to 10000")
+    # Log bucket count is a memory bound for attacker-shaped reject keys, not a logging rate
+    if not isinstance(data["log_bucket_max_entries"], int) or isinstance(data["log_bucket_max_entries"], bool) or not 1 <= data["log_bucket_max_entries"] <= 1000000:
+        raise SystemExit(f"{config_file}: log_bucket_max_entries must be an integer from 1 to 1000000")
     data["prompt_column_widths"] = validate_prompt_column_widths(config_file, data["prompt_column_widths"])
     data["prompt_protocol_colors"] = validate_prompt_protocol_colors(config_file, data["prompt_protocol_colors"])
     return data

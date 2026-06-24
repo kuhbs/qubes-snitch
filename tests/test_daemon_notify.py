@@ -20,6 +20,7 @@ class DaemonNotifyTests(unittest.TestCase):
             "dns_cache_refresh_workers": 32,
             "limit_rate": "3/minute",
             "burst": 5,
+            "log_bucket_max_entries": 4096,
         })
         setattr(snitchd, "SOURCES_BY_NAME", {"browser": ["10.137.0.42"]})
         old_notify = snitchd.notify.alert_notify
@@ -47,6 +48,7 @@ class DaemonNotifyTests(unittest.TestCase):
             "dns_cache_refresh_workers": 32,
             "limit_rate": "3/minute",
             "burst": 5,
+            "log_bucket_max_entries": 4096,
         })
         setattr(snitchd, "SOURCES_BY_NAME", {"browser": ["10.137.0.42"], "chat": ["10.137.0.43"]})
         snitchd.queue.PENDING_QUESTIONS.clear()
@@ -72,9 +74,10 @@ class DaemonNotifyTests(unittest.TestCase):
             "dns_cache_refresh_workers": 32,
             "limit_rate": "1/minute",
             "burst": 1,
+            "log_bucket_max_entries": 4096,
         })
         setattr(snitchd, "SOURCES_BY_NAME", {"browser": ["10.137.0.42"]})
-        setattr(snitchd, "LOG_BUCKETS", {})
+        setattr(snitchd, "LOG_BUCKETS", snitchd.OrderedDict())
         snitchd.queue.PENDING_QUESTIONS.clear()
         snitchd.queue.PENDING_PROMPT_IDS.clear()
         snitchd.syslog.syslog = lambda _priority, message: events.append(message)
@@ -84,6 +87,19 @@ class DaemonNotifyTests(unittest.TestCase):
         snitchd.packet_handlers.queue_prompt(snitchd.context(), {"source": "browser", "host": None, "dst": "9.9.9.9", "proto": "tcp", "dport": 8443, "body": b""})
 
         self.assertEqual(len([event for event in events if "reject queue-full" in event]), 1)
+
+    def test_log_buckets_are_capped(self):
+        # Log throttle keys can include attacker-controlled DNS names, so old buckets must be evicted
+        snitchd = load_snitchd()
+        setattr(snitchd, "CONFIG", {"limit_rate": "1/minute", "burst": 1, "log_bucket_max_entries": 2})
+        setattr(snitchd, "LOG_BUCKETS", snitchd.OrderedDict())
+        snitchd.time.monotonic = lambda: 100.0
+
+        self.assertTrue(snitchd.alerts_runtime.log_allowed(snitchd.context(), ("source", "one")))
+        self.assertTrue(snitchd.alerts_runtime.log_allowed(snitchd.context(), ("source", "two")))
+        self.assertTrue(snitchd.alerts_runtime.log_allowed(snitchd.context(), ("source", "three")))
+
+        self.assertEqual(list(snitchd.LOG_BUCKETS), [("source", "two"), ("source", "three")])
 
     def test_alert_notify_uses_configured_expire_time(self):
         # notify-send wants milliseconds; config uses notify-send milliseconds
@@ -183,7 +199,7 @@ class DaemonNotifyTests(unittest.TestCase):
         from tempfile import TemporaryDirectory
         with TemporaryDirectory() as tmp:
             path = Path(tmp) / "config.yml"
-            path.write_text("theme: dark\nnotify_send: False\nnotify_send_timeout: 5000\npending_queue_size: 200\ndns_cache_max_per_source: 32768\ndns_cache_max_global: 131072\ndns_cache_refresh_workers: 32\ndefault_disposable_vm_name: default-dvm\nlimit_rate: 3/minute\nburst: 5\nprompt_column_widths:\n  queue: 10\n  source: 18\n  target: 25\n  dns: 42\n  service: 22\nprompt_protocol_colors:\n  encrypted:\n    - proto: tcp\n      port: 443\n  unencrypted:\n    - proto: tcp\n      port: 80\n    - proto: udp\n      port: 53\n", encoding="utf-8")
+            path.write_text("theme: dark\nnotify_send: False\nnotify_send_timeout: 5000\npending_queue_size: 200\ndns_cache_max_per_source: 32768\ndns_cache_max_global: 131072\ndns_cache_refresh_workers: 32\ndefault_disposable_vm_name: default-dvm\nlimit_rate: 3/minute\nburst: 5\nlog_bucket_max_entries: 4096\nprompt_column_widths:\n  queue: 10\n  source: 18\n  target: 25\n  dns: 42\n  service: 22\nprompt_protocol_colors:\n  encrypted:\n    - proto: tcp\n      port: 443\n  unencrypted:\n    - proto: tcp\n      port: 80\n    - proto: udp\n      port: 53\n", encoding="utf-8")
 
             config = snitchd.config.read_config(path)
 

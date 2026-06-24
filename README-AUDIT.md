@@ -35,6 +35,50 @@ Packet parsing marks TCP/UDP source port 0, destination port 0, missing transpor
 
 Python `re` character ranges such as `[a-z]` do not match Cyrillic/CJK characters. Live DNS qnames are restricted by ASCII-range regexes and additional checks that reject punycode/IDN labels.
 
+This is intentional, not missing IDN support. DNS decisions must stay readable and must not silently accept homograph lookalikes such as `раураl.com`, `gооgle.com`, or `аррӏе.com`.
+
+### YAML parsing is intentionally safe-loader only
+
+Qubes-Snitch uses a `yaml.SafeLoader`-derived loader that also rejects duplicate keys. Do not report unsafe YAML deserialization unless a new code path uses an unsafe loader.
+
+Generated rule YAML is reloaded and validated before it is published. A broken generated rule fails closed instead of becoming live policy.
+
+### subprocess calls are argv lists, not shell strings
+
+Qubes-Snitch intentionally avoids `shell=True`, `eval`, `exec`, `pickle`, `os.system`, and `os.popen`. Calls to `nft`, `notify-send`, `runuser`, and qrexec helpers use list argv.
+
+Do not report shell metacharacters in packet fields, PTR names, DNS names, or VM names as shell injection unless a future change introduces a shell sink.
+
+### nftables rendering does not use PTR or qname as syntax
+
+Saved flow rules render validated `dest`, `proto`, `port`, source-chain names, and `action`. Destination values are validated as IPv4 networks or the explicit `any` sentinel, protocols/actions are restricted vocabularies, ports are normalized, chain names are sanitized and hashed, and log prefixes are quoted.
+
+PTR names and DNS qnames are display/policy data, not nft syntax fragments for normal flow matching. Do not report PTR-controlled nft injection unless the renderer starts using PTR text in match expressions.
+
+### DNS wire parsing is delegated to dnspython
+
+DNS packets are parsed with dnspython instead of a hand-rolled compression-pointer parser. Malformed DNS is rejected or dropped before it can become saved policy.
+
+Do not report DNS compression-pointer loops or malformed-wire crashes without demonstrating that dnspython raises something outside the handled DNS exception path in the current packet path.
+
+### NFQUEUE policy is intentionally fail-closed
+
+Rendered queue rules do not use the nftables `bypass` flag, and the forward base chain policy is drop. If the daemon is absent, dead, or overloaded, queued traffic does not silently pass.
+
+Do not report daemon death or full queues as fail-open unless a queue rule gains `bypass` or the base policy stops being drop.
+
+### Terminal and syslog spoofing are filtered before display
+
+Attacker-influenced display fields pass through `safe_text()` before terminal/syslog output. Control characters, format characters, ESC, and BiDi overrides are stripped or collapsed.
+
+Do not report ANSI escape injection or BiDi prompt spoofing unless a new output path prints untrusted text without `safe_text()`.
+
+### qrexec source inventory does not take attacker-controlled arguments
+
+`sys-snitch` does not pass attacker-controlled arguments to the dom0 source helper. The dom0 helper reads Qubes state and returns pipe-separated source rows, and the daemon validates row shape, source names, IPv4 addresses, duplicate IPs, and label conflicts.
+
+Do not report qrexec argument injection or unvalidated source inventory unless a future helper starts consuming untrusted stdin/argv or the daemon stops validating returned rows.
+
 ### PTR names are display hints, not policy truth
 
 PTR names are explicitly shown as `PTR name`, colored as lower-trust hints, and never become nftables match criteria. A misleading PTR, confusable PTR text, or long PTR display can at most influence user judgment; it is not a code bypass. The actual saved flow rule still matches the concrete destination IP, protocol, and port.
@@ -106,6 +150,12 @@ The only meaningful concern is stale conntrack after manually tightening old bro
 If an audit claims the qrexec policy heredoc is truncated, re-check the current repository. The current installer contains the qrexec service heredoc, qrexec policy heredoc, and later VM setup commands.
 
 ## Accepted design choices / not planned for removal
+
+### `notify-send` can run while the policy lock is held
+
+Prompt notifications are part of the same user-visible event as queue insertion. A slow desktop notification can briefly delay policy saves and source refreshes, but the effect is bounded by `pending_queue_size` and fails closed.
+
+This is accepted latency, not a bypass. Do not report it as a security issue unless notification work becomes unbounded or starts allowing traffic while the policy is stale.
 
 ### Keep synthetic DNS REFUSED for saved DNS rejects
 

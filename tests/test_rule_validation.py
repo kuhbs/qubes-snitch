@@ -9,6 +9,13 @@ from snitch_testlib import load_snitchd
 
 class RuleValidationTests(unittest.TestCase):
     # Rule-validation tests protect the hand-editable YAML contract
+    def test_missing_source_policy_is_no_match(self):
+        # Disappearing DispVM cleanup can remove a source between packet parsing and rule matching
+        snitchd = load_snitchd()
+        request = {"source": "disp1234", "dst": "1.2.3.4", "proto": "tcp", "dport": 443}
+
+        self.assertIsNone(snitchd.policy.matching_action(request, {}))
+
     def test_rule_file_rejects_destination_lists(self):
         # One rule must describe one destination; lists would hide several firewall decisions in one YAML entry
         snitchd = load_snitchd()

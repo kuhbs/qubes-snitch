@@ -15,7 +15,7 @@ class SourcesConfigTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             path = Path(tmp) / "config.yml"
             path.write_text(
-                "theme: dark\nnotify_send: True\nnotify_send_timeout: 5000\npending_queue_size: True\ndns_cache_max_per_source: 32768\ndns_cache_max_global: 131072\ndns_cache_refresh_workers: 32\ndefault_disposable_vm_name: default-dvm\nlimit_rate: 3/minute\nburst: 5\nprompt_column_widths:\n  queue: 10\n  source: 18\n  target: 25\n  dns: 42\n  service: 22\nprompt_protocol_colors:\n  encrypted:\n    - proto: tcp\n      port: 443\n  unencrypted:\n    - proto: tcp\n      port: 80\n    - proto: udp\n      port: 53\n",
+                "theme: dark\nnotify_send: True\nnotify_send_timeout: 5000\npending_queue_size: True\ndns_cache_max_per_source: 32768\ndns_cache_max_global: 131072\ndns_cache_refresh_workers: 32\ndefault_disposable_vm_name: default-dvm\nlimit_rate: 3/minute\nburst: 5\nlog_bucket_max_entries: 4096\nprompt_column_widths:\n  queue: 10\n  source: 18\n  target: 25\n  dns: 42\n  service: 22\nprompt_protocol_colors:\n  encrypted:\n    - proto: tcp\n      port: 443\n  unencrypted:\n    - proto: tcp\n      port: 80\n    - proto: udp\n      port: 53\n",
                 encoding="utf-8",
             )
 
@@ -28,7 +28,7 @@ class SourcesConfigTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             path = Path(tmp) / "config.yml"
             path.write_text(
-                "theme: dark\nnotify_send: True\nnotify_send_timeout: 5000\npending_queue_size: 200\ndns_cache_max_per_source: 32768\ndns_cache_max_global: 10\ndns_cache_refresh_workers: 32\ndefault_disposable_vm_name: default-dvm\nlimit_rate: 3/minute\nburst: 5\nprompt_column_widths:\n  queue: 10\n  source: 18\n  target: 25\n  dns: 42\n  service: 22\nprompt_protocol_colors:\n  encrypted:\n    - proto: tcp\n      port: 443\n  unencrypted:\n    - proto: tcp\n      port: 80\n    - proto: udp\n      port: 53\n",
+                "theme: dark\nnotify_send: True\nnotify_send_timeout: 5000\npending_queue_size: 200\ndns_cache_max_per_source: 32768\ndns_cache_max_global: 10\ndns_cache_refresh_workers: 32\ndefault_disposable_vm_name: default-dvm\nlimit_rate: 3/minute\nburst: 5\nlog_bucket_max_entries: 4096\nprompt_column_widths:\n  queue: 10\n  source: 18\n  target: 25\n  dns: 42\n  service: 22\nprompt_protocol_colors:\n  encrypted:\n    - proto: tcp\n      port: 443\n  unencrypted:\n    - proto: tcp\n      port: 80\n    - proto: udp\n      port: 53\n",
                 encoding="utf-8",
             )
 
@@ -41,7 +41,7 @@ class SourcesConfigTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             path = Path(tmp) / "config.yml"
             base = "theme: dark\nnotify_send: True\nnotify_send_timeout: 5000\npending_queue_size: 200\ndns_cache_max_per_source: 32768\ndns_cache_max_global: 131072\n"
-            rest = "default_disposable_vm_name: default-dvm\nlimit_rate: 3/minute\nburst: 5\nprompt_column_widths:\n  queue: 10\n  source: 18\n  target: 25\n  dns: 42\n  service: 22\nprompt_protocol_colors:\n  encrypted:\n    - proto: tcp\n      port: 443\n  unencrypted:\n    - proto: tcp\n      port: 80\n    - proto: udp\n      port: 53\n"
+            rest = "default_disposable_vm_name: default-dvm\nlimit_rate: 3/minute\nburst: 5\nlog_bucket_max_entries: 4096\nprompt_column_widths:\n  queue: 10\n  source: 18\n  target: 25\n  dns: 42\n  service: 22\nprompt_protocol_colors:\n  encrypted:\n    - proto: tcp\n      port: 443\n  unencrypted:\n    - proto: tcp\n      port: 80\n    - proto: udp\n      port: 53\n"
             for workers in ("True", "0", "1025"):
                 path.write_text(base + f"dns_cache_refresh_workers: {workers}\n" + rest, encoding="utf-8")
                 with self.assertRaises(SystemExit):
@@ -53,7 +53,7 @@ class SourcesConfigTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             path = Path(tmp) / "config.yml"
             path.write_text(
-                "theme: dark\nnotify_send: True\nnotify_send_timeout: 5000\npending_queue_size: 200\ndns_cache_max_per_source: 32768\ndns_cache_max_global: 131072\ndns_cache_refresh_workers: 32\ndefault_disposable_vm_name: default-dvm\nlimit_rate: 3/minute\nburst: 5\nprompt_column_widths:\n  queue: 10\n  source: 18\n  target: 25\n  dns: 42\n  service: 22\nprompt_protocol_colors:\n  encrypted:\n    - proto: tcp\n      port: 443\n  unencrypted:\n    - proto: tcp\n      port: 80\n    - proto: udp\n      port: 53\n",
+                "theme: dark\nnotify_send: True\nnotify_send_timeout: 5000\npending_queue_size: 200\ndns_cache_max_per_source: 32768\ndns_cache_max_global: 131072\ndns_cache_refresh_workers: 32\ndefault_disposable_vm_name: default-dvm\nlimit_rate: 3/minute\nburst: 5\nlog_bucket_max_entries: 4096\nprompt_column_widths:\n  queue: 10\n  source: 18\n  target: 25\n  dns: 42\n  service: 22\nprompt_protocol_colors:\n  encrypted:\n    - proto: tcp\n      port: 443\n  unencrypted:\n    - proto: tcp\n      port: 80\n    - proto: udp\n      port: 53\n",
                 encoding="utf-8",
             )
 
@@ -85,7 +85,7 @@ class SourcesConfigTests(unittest.TestCase):
         snitchd = load_snitchd()
         with TemporaryDirectory() as tmp:
             path = Path(tmp) / "config.yml"
-            base = "theme: dark\nnotify_send: True\nnotify_send_timeout: 5000\npending_queue_size: 200\ndns_cache_max_per_source: 32768\ndns_cache_max_global: 131072\ndns_cache_refresh_workers: 32\ndefault_disposable_vm_name: default-dvm\nlimit_rate: 3/minute\nburst: 5\nprompt_column_widths:\n  queue: 10\n  source: 18\n  target: 25\n  dns: 42\n  service: 22\n"
+            base = "theme: dark\nnotify_send: True\nnotify_send_timeout: 5000\npending_queue_size: 200\ndns_cache_max_per_source: 32768\ndns_cache_max_global: 131072\ndns_cache_refresh_workers: 32\ndefault_disposable_vm_name: default-dvm\nlimit_rate: 3/minute\nburst: 5\nlog_bucket_max_entries: 4096\nprompt_column_widths:\n  queue: 10\n  source: 18\n  target: 25\n  dns: 42\n  service: 22\n"
             for colors in (
                 "prompt_protocol_colors:\n  encrypted: []\n  unencrypted:\n    - proto: icmp\n      port: 8\n",
                 "prompt_protocol_colors:\n  encrypted:\n    - proto: tcp\n      port: 443\n      name: https\n  unencrypted: []\n",
@@ -133,7 +133,7 @@ class SourcesConfigTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             path = Path(tmp) / "config.yml"
             path.write_text(
-                "theme: dark\nnotify_send: True\nnotify_send_timeout: 5000\npending_queue_size: 200\ndns_cache_max_per_source: 32768\ndns_cache_max_global: 131072\ndns_cache_refresh_workers: 32\ndefault_disposable_vm_name: app-disp-base\nlimit_rate: 3/minute\nburst: 5\nprompt_column_widths:\n  queue: 10\n  source: 18\n  target: 25\n  dns: 42\n  service: 22\nprompt_protocol_colors:\n  encrypted:\n    - proto: tcp\n      port: 443\n  unencrypted:\n    - proto: tcp\n      port: 80\n    - proto: udp\n      port: 53\n",
+                "theme: dark\nnotify_send: True\nnotify_send_timeout: 5000\npending_queue_size: 200\ndns_cache_max_per_source: 32768\ndns_cache_max_global: 131072\ndns_cache_refresh_workers: 32\ndefault_disposable_vm_name: app-disp-base\nlimit_rate: 3/minute\nburst: 5\nlog_bucket_max_entries: 4096\nprompt_column_widths:\n  queue: 10\n  source: 18\n  target: 25\n  dns: 42\n  service: 22\nprompt_protocol_colors:\n  encrypted:\n    - proto: tcp\n      port: 443\n  unencrypted:\n    - proto: tcp\n      port: 80\n    - proto: udp\n      port: 53\n",
                 encoding="utf-8",
             )
 
@@ -230,7 +230,7 @@ class SourcesConfigTests(unittest.TestCase):
         events = []
         with TemporaryDirectory() as tmp:
             snitchd.RULES_DIR = Path(tmp)
-            config = {"notify_send": False, "pending_queue_size": 200, "dns_cache_max_per_source": 32768, "dns_cache_max_global": 131072, "dns_cache_refresh_workers": 32, "default_disposable_vm_name": "default-dvm", "limit_rate": "3/minute", "burst": 5, "prompt_protocol_colors": {"encrypted": {("tcp", "443")}, "unencrypted": {("tcp", "80"), ("udp", "53")}}}
+            config = {"notify_send": False, "pending_queue_size": 200, "dns_cache_max_per_source": 32768, "dns_cache_max_global": 131072, "dns_cache_refresh_workers": 32, "default_disposable_vm_name": "default-dvm", "limit_rate": "3/minute", "burst": 5, "log_bucket_max_entries": 4096, "prompt_protocol_colors": {"encrypted": {("tcp", "443")}, "unencrypted": {("tcp", "80"), ("udp", "53")}}}
             snitchd.config.read_config = lambda _path: config
             snitchd.RULES = {}
             snitchd.sources_runtime.query_dom0_sources = lambda _ctx: (_ for _ in ()).throw(snitchd.subprocess.TimeoutExpired("qrexec-client-vm", 5))
@@ -472,7 +472,7 @@ class SourcesConfigTests(unittest.TestCase):
             (rules_dir / "app-a.yml").write_text("rules4: []\n\ndns: []\n", encoding="utf-8")
             snitchd.RULES_DIR = rules_dir
             snitchd.CONFIG_FILE = rules_dir / "config.yml"
-            snitchd.config.read_config = lambda _path: {"notify_send": False, "pending_queue_size": 200, "dns_cache_max_per_source": 32768, "dns_cache_max_global": 131072, "dns_cache_refresh_workers": 32, "default_disposable_vm_name": "default-dvm", "limit_rate": "3/minute", "burst": 5, "prompt_protocol_colors": {"encrypted": {("tcp", "443")}, "unencrypted": {("tcp", "80"), ("udp", "53")}}}
+            snitchd.config.read_config = lambda _path: {"notify_send": False, "pending_queue_size": 200, "dns_cache_max_per_source": 32768, "dns_cache_max_global": 131072, "dns_cache_refresh_workers": 32, "default_disposable_vm_name": "default-dvm", "limit_rate": "3/minute", "burst": 5, "log_bucket_max_entries": 4096, "prompt_protocol_colors": {"encrypted": {("tcp", "443")}, "unencrypted": {("tcp", "80"), ("udp", "53")}}}
             snitchd.syslog.syslog = lambda *_args: events.append(_args)
 
             snitchd.policy_runtime.load_policy_without_sources(snitchd.context())

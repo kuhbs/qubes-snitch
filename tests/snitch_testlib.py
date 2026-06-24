@@ -262,7 +262,7 @@ def load_snitchd():
     module.policy = policy
     module.add_dns_query_fields = add_dns_query_fields
     module.request_without_body = request_without_body
-    module.CONFIG = {"notify_send": False, "pending_queue_size": 200, "dns_cache_max_per_source": 32768, "dns_cache_max_global": 131072, "dns_cache_refresh_workers": 32, "default_disposable_vm_name": "default-dvm", "limit_rate": "3/minute", "burst": 5, "prompt_protocol_colors": {"encrypted": {("tcp", "443")}, "unencrypted": {("tcp", "80"), ("udp", "53")}}}
+    module.CONFIG = {"notify_send": False, "pending_queue_size": 200, "dns_cache_max_per_source": 32768, "dns_cache_max_global": 131072, "dns_cache_refresh_workers": 32, "default_disposable_vm_name": "default-dvm", "limit_rate": "3/minute", "burst": 5, "log_bucket_max_entries": 4096, "prompt_protocol_colors": {"encrypted": {("tcp", "443")}, "unencrypted": {("tcp", "80"), ("udp", "53")}}}
     return module
 
 

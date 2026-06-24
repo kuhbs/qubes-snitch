@@ -30,13 +30,19 @@ def flow_rule_matches(request, rule):
     return port_matches(request, rule)
 
 def matching_action(request, rules):
+    # A numbered DispVM can disappear after packet source lookup but before this policy read
+    # Treat a vanished source as no saved rule, which keeps the packet on the reject/prompt path
+    source_rules = rules.get(request["source"])
+    if source_rules is None:
+        return None
+
     # YAML files store ordered lists; first matching rule wins exactly like rendered nft rules
     if request.get("kind") == "dns":
-        for rule in rules[request["source"]]["dns"]:
+        for rule in source_rules["dns"]:
             if dns_rule_matches(request, rule):
                 return rule["action"]
         return None
-    for rule in rules[request["source"]]["ip"]:
+    for rule in source_rules["ip"]:
         if flow_rule_matches(request, rule):
             return rule["action"]
     return None
