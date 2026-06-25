@@ -13,6 +13,8 @@ import dns.rcode
 import dns.rdataclass
 import dns.rdatatype
 
+from qubes_snitch.security_checks import has_non_ascii
+
 
 # Normal live DNS names need at least two labels and each label must start/end with a letter or digit
 LIVE_DNS_QNAME_RE = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$")
@@ -170,6 +172,8 @@ def add_dns_query_fields(request):
         request["dns_error"] = "multi-question" if message.question else "no-question"
         return True
     question = message.question[0]
+    if any(has_non_ascii(label) for label in question.name.labels):
+        return unsupported_dns(request, "non-ascii-qname", question)
     qtype = dns_qtype_text(question.rdtype)
     qclass = dns.rdataclass.to_text(question.rdclass).upper()
     # EDNS version lives in the OPT pseudo-record, so attach the question before refusing it for clean logging/replies

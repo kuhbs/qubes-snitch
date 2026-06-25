@@ -19,5 +19,5 @@ def safe_text(value, *, limit=MAX_DISPLAY_TEXT):
             cleaned.append(char)
     compact = " ".join("".join(cleaned).split())
     if len(compact) > limit:
-        return compact[: limit - 1] + "…"
+        return compact[: limit - 3] + "..."
     return compact

@@ -6,9 +6,13 @@ from concurrent.futures import ThreadPoolExecutor
 import dns.resolver
 import dns.reversename
 
+from qubes_snitch import alerts_runtime
+from qubes_snitch.security_checks import has_non_ascii
+
 DNS_HINT_QTYPES = {"A", "CNAME"}
 DNS_LOOKUP_LIFETIME = 3.0
 DNS_REFRESH_FAILURE_TTL = 60
+DNS_PTR_REJECT = object()
 
 
 def response_matches_qname(response, qname, qtype, label):
@@ -185,15 +189,23 @@ def qname_labels(ctx, source, qname, qtype):
     return refresh_dns_rule(ctx, source, qname, qtype)
 
 
-def ptr_name(ip):
-    # PTR is bounded and explicitly labeled because reverse DNS is not policy truth
+def ptr_name(ctx, source, ip):
+    # PTR is DNS text from the network; reject Unicode before it can become a prompt display hint
     try:
         reverse = dns.reversename.from_address(ip)
         answers = dns.resolver.resolve(reverse, "PTR", lifetime=DNS_LOOKUP_LIFETIME)
     except Exception:
         return None
     for answer in answers:
-        return f"PTR {str(answer.target).rstrip('.')}"
+        target = str(answer.target).rstrip(".")
+        if has_non_ascii(target):
+            alerts_runtime.security_alert(
+                ctx,
+                ("dns", source, "non-ascii-ptr", ip),
+                f"DROP PTR containing non-ASCII text SRC={source} DST={ip}",
+            )
+            return DNS_PTR_REJECT
+        return f"PTR {target}"
     return None
 
 
@@ -227,7 +239,7 @@ def lazy_dns_name(ctx, source, ip):
     for labels in refresh_dns_rules(ctx, source, refresh_rules):
         if ip in labels:
             return f"A {labels[ip]}"
-    return ptr_name(ip)
+    return ptr_name(ctx, source, ip)
 
 
 def cached_dns_name(ctx, source, ip):
@@ -250,6 +262,10 @@ def enrich_prompt_request(ctx, request):
     if request.get("kind") == "dns" or request.get("host") or not request.get("dst"):
         return request
     name = lazy_dns_name(ctx, request["source"], request["dst"])
+    if name is DNS_PTR_REJECT:
+        # The packet that created this prompt was already dropped
+        # Discarding the prompt keeps later retries rejected instead of showing Unicode PTR text
+        return None
     if name:
         request["host"] = name
     return request

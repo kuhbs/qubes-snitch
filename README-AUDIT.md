@@ -31,11 +31,15 @@ Malformed DNS and malformed IP/TCP/UDP/ICMP packets are logged/notified accordin
 
 Packet parsing marks TCP/UDP source port 0, destination port 0, missing transport ports, and malformed TCP/UDP headers as malformed. Malformed packets are dropped before prompt queueing. The CLI cannot invent `dport`, `dst`, `proto`, or other rule fields; it only returns `allow` or `reject` for a daemon-created pending prompt.
 
-### Unicode confusable DNS names are not accepted by the live qname regex
+### Unicode/IDN DNS names are not accepted by live DNS policy
 
 Python `re` character ranges such as `[a-z]` do not match Cyrillic/CJK characters. Live DNS qnames are restricted by ASCII-range regexes and additional checks that reject punycode/IDN labels.
 
 This is intentional, not missing IDN support. DNS decisions must stay readable and must not silently accept homograph lookalikes such as `раураl.com`, `gооgle.com`, or `аррӏе.com`.
+
+Qubes-Snitch rejects non-ASCII text at the relevant input boundaries: raw DNS packet bodies containing non-ASCII bytes are dropped before DNS parsing, PTR lookup results containing non-ASCII text are not displayed, and config/rule/source files are rejected before use if they contain non-ASCII bytes. Do not report Unicode DNS/PTR/config/source text as accepted unless a path bypasses these ASCII gates.
+
+Qubes-Snitch is not a network intrusion detection system. It normally does not classify arbitrary packet contents as malicious; it prompts for firewall policy. Unicode DNS/PTR text is the exception because Snitch would already be interpreting that text for a user decision, and forwarding malicious, confusing, or hard-to-see Unicode to the CLI would make the prompt less trustworthy.
 
 ### YAML parsing is intentionally safe-loader only
 
@@ -54,6 +58,18 @@ Do not report shell metacharacters in packet fields, PTR names, DNS names, or VM
 Saved flow rules render validated `dest`, `proto`, `port`, source-chain names, and `action`. Destination values are validated as IPv4 networks or the explicit `any` sentinel, protocols/actions are restricted vocabularies, ports are normalized, chain names are sanitized and hashed, and log prefixes are quoted.
 
 PTR names and DNS qnames are display/policy data, not nft syntax fragments for normal flow matching. Do not report PTR-controlled nft injection unless the renderer starts using PTR text in match expressions.
+
+### `ip_network(..., strict=False)` is not a policy bypass
+
+Qubes-Snitch accepts trusted manual YAML networks through `ipaddress.ip_network(value, strict=False)`. This only normalizes non-canonical CIDR text with host bits set, for example `10.0.0.1/24` to `10.0.0.0/24`; it does not broaden nftables matching beyond the normalized network.
+
+Manual YAML is trusted user/admin input, and `0.0.0.0/0` is explicitly rejected in favor of the visible `dest: any` sentinel. Do not report `strict=False` as a vulnerability without showing a different accepted match set between Python validation and nftables rendering.
+
+### DNS wildcard suffix matching is intentional and apex-safe
+
+Manual wildcard DNS rules use suffix matching: `*.example.org` matches `www.example.org`, but not the bare apex `example.org` and not `badexample.org`. Live DNS prompts create exact qname rules; wildcard rules are manual policy only.
+
+Do not report DNS wildcard overmatching unless a future change removes the `qname.endswith("." + suffix) and qname != suffix` shape.
 
 ### DNS wire parsing is delegated to dnspython
 
@@ -79,13 +95,21 @@ Do not report ANSI escape injection or BiDi prompt spoofing unless a new output 
 
 Do not report qrexec argument injection or unvalidated source inventory unless a future helper starts consuming untrusted stdin/argv or the daemon stops validating returned rows.
 
+### Source inventory size is bounded by Qubes-managed VM state
+
+The protected client VM cannot write arbitrary source rows into QubesDB or the dom0 qrexec source helper. Source refreshes are driven by Qubes-managed state, the qrexec call has a timeout, and the returned rows are filtered to VMs routed through `sys-snitch` before Snitch installs source policy.
+
+Do not report unbounded source-map growth from an untrusted AppVM unless that AppVM can actually create routed Qubes VM identities or arbitrary dom0 helper output.
+
 ### PTR names are display hints, not policy truth
 
-PTR names are explicitly shown as `PTR name`, colored as lower-trust hints, and never become nftables match criteria. A misleading PTR, confusable PTR text, or long PTR display can at most influence user judgment; it is not a code bypass. The actual saved flow rule still matches the concrete destination IP, protocol, and port.
+PTR names are explicitly shown as `PTR name`, colored as lower-trust hints, and never become nftables match criteria. The actual saved flow rule still matches the concrete destination IP, protocol, and port.
+
+Qubes-Snitch rejects non-ASCII PTR text before display, so Unicode confusable and wide-character PTR findings should not be re-reported unless a PTR display path bypasses the ASCII check.
 
 ### Long or odd display text is a UI nit, not a firewall bypass
 
-`safe_text()` removes control/format characters and collapses whitespace before terminal/syslog output. The Unicode ellipsis used for truncation and module-global pending queue state are not security boundaries. Prompt queue state is RAM-only in the single daemon process, and fail-closed nftables intentionally has no queue rule because Python may not be running yet.
+`safe_text()` removes control/format characters and collapses whitespace before terminal/syslog output. The ASCII truncation marker and module-global pending queue state are not security boundaries. Prompt queue state is RAM-only in the single daemon process, and fail-closed nftables intentionally has no queue rule because Python may not be running yet.
 
 ### Local CLI interruption and package pinning are operational issues
 
@@ -106,6 +130,8 @@ The simple dom0 installer clones the current repository into the template and ru
 ### Qubes anti-spoofing is intentionally not duplicated in Snitch rules
 
 Qubes owns the per-vif source-IP anti-spoofing layer. Qubes-Snitch requires the relevant Qubes networking/firewall services and only owns its private `table inet qubes_snitch`. Do not report missing `iifname + ip saddr` duplication as a default bug.
+
+Stopping or breaking Qubes firewall/antispoof plumbing is not equivalent to Snitch accepting spoofed traffic: the Qubes services own routing, NAT, DNS DNAT, and antispoofing. Snitch's unit requires the Qubes firewall service chain and the fail-closed table remains when Snitch cannot start.
 
 ### Disp-like names are intentionally reserved outside real DispVMs
 
@@ -129,6 +155,12 @@ Saved reject rules render real nftables rejects. New unanswered prompts are inte
 
 UDP/53 packets from known source VMs are sent to NFQUEUE before resolver/domain handling. If resolver transport has no saved allow yet, the queued packet is still held by NFQUEUE and is then dropped by the daemon. That query never reaches the resolver, so there is no resolver reply for that same packet to race back through established/related rules.
 
+### DNS body policy runs after resolver transport is allowed
+
+Qubes-Snitch treats DNS as two layers: first the VM must have policy allowing UDP/53 transport to the resolver, then Snitch inspects the DNS question/body for domain policy. If resolver transport has no saved allow yet, the packet is queued/dropped as ordinary NET udp/53 traffic and the DNS body is not parsed or classified.
+
+Do not report missing non-ASCII DNS-body alerts before resolver-transport allow as a bypass. The packet is still dropped before reaching the resolver; DNS body inspection starts only after the resolver transport itself is allowed.
+
 ### CLI rule saves do not need conntrack flushing
 
 A repeated audit claim says in-place nft reloads from CLI decisions are dangerous because `load_nft()` does not flush conntrack. This mixes up two different workflows.
@@ -145,9 +177,15 @@ Rendered reply rules for broad allow policy, including `dest: any`, can match br
 
 The only meaningful concern is stale conntrack after manually tightening old broad allow rules. The supported tightening workflow is restarting `qubes-snitchd.service`, and that startup flushes conntrack. Do not report the broad reply rule as a runtime bypass unless Qubes-Snitch later supports live tightening of existing rules without service restart.
 
-### The current `install-dom0.sh` is not truncated
+### `install-dom0.sh` is not truncated
 
-If an audit claims the qrexec policy heredoc is truncated, re-check the current repository. The current installer contains the qrexec service heredoc, qrexec policy heredoc, and later VM setup commands.
+The installer contains the qrexec service heredoc, qrexec policy heredoc, and later VM setup commands. Do not report a truncated qrexec policy heredoc unless the file actually stops before the policy and VM setup sections.
+
+### Installer package-update ordering is operational and fails safe
+
+The dom0 installer updates the template package index before invoking the in-template install script. If package installation fails, setup aborts before `sys-snitch` is created or configured. Daemon startup also validates required files and loads fail-closed policy before live policy.
+
+Do not report `apt-get install` ordering as a protected-client security bypass unless the installer can leave a running `sys-snitch` with permissive policy after a partial failure.
 
 ## Accepted design choices / not planned for removal
 

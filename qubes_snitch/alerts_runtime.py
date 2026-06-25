@@ -62,6 +62,13 @@ def log_flow_reject(ctx, request, reason):
 def log_dns_formerr(ctx, request):
     # DNS packets that are not normal one-question client queries are suspicious, so reject and notify
     reason = request.get("dns_error", "malformed")
+    if reason == "non-ascii-qname":
+        security_alert(
+            ctx,
+            ("dns", request["source"], reason),
+            f"DROP DNS containing non-ASCII qname SRC={request['source']} IP={request['src']} DST={request['dst']}",
+        )
+        return
     if reason == "unsupported-aaaa":
         security_alert(
             ctx,

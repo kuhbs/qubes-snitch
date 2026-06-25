@@ -247,6 +247,34 @@ class RuleValidationTests(unittest.TestCase):
         self.assertNotIn("tcp dport 443 accept", nft)
         self.assertIn("QUBES-SNITCH unknown reject", nft)
 
+    def test_live_nft_load_failure_reinstalls_fail_closed_table(self):
+        # A live nft load can fail after destroy table, so load_nft must restore fail-closed before surfacing the error
+        snitchd = load_snitchd()
+        calls = []
+        original_run = snitchd.nft.subprocess.run
+
+        def fake_run(argv, check, **_kwargs):
+            calls.append(tuple(argv))
+            if len(calls) == 2:
+                raise snitchd.subprocess.CalledProcessError(1, argv)
+
+        snitchd.nft.subprocess.run = fake_run
+        self.addCleanup(lambda: setattr(snitchd.nft.subprocess, "run", original_run))
+        with TemporaryDirectory() as tmp:
+            nft_file = Path(tmp) / "policy.nft"
+            with self.assertRaises(snitchd.subprocess.CalledProcessError):
+                snitchd.nft.load_nft(
+                    nft_file,
+                    {"app-signal": ["10.137.50.20"]},
+                    {"app-signal": {"ip": [], "dns": []}, "unknown": {"ip": [], "dns": []}},
+                    snitchd.CONFIG,
+                    snitchd.NFT_TABLE,
+                    snitchd.QUEUE_NUM,
+                )
+
+            self.assertEqual([call[1:3] for call in calls], [("-c", "-f"), ("-f", str(nft_file)), ("-c", "-f"), ("-f", str(nft_file))])
+            self.assertEqual(nft_file.read_text(encoding="utf-8"), snitchd.nft.render_fail_closed_nft(snitchd.CONFIG, snitchd.NFT_TABLE, snitchd.QUEUE_NUM))
+
     def test_nft_chain_names_do_not_collide_for_similar_source_names(self):
         # Qubes VM names can contain different separators, so nft chain names must stay unique after sanitizing
         snitchd = load_snitchd()

@@ -232,7 +232,15 @@ def load_nft(nft_file, sources, rules, config, nft_table, queue_num):
     # Run nft -c first so a bad render cannot replace the currently loaded firewall table
     nft_file.write_text(render_nft(sources, rules, config, nft_table, queue_num), encoding="utf-8")
     subprocess.run(["nft", "-c", "-f", str(nft_file)], check=True)
-    subprocess.run(["nft", "-f", str(nft_file)], check=True)
+    try:
+        subprocess.run(["nft", "-f", str(nft_file)], check=True)
+    except subprocess.CalledProcessError:
+        # The rendered policy starts by destroying the old table, so a live load failure must not leave no Snitch table
+        # Reinstall the static fail-closed policy immediately, then let the daemon fatal path report the original failure
+        nft_file.write_text(render_fail_closed_nft(config, nft_table, queue_num), encoding="utf-8")
+        subprocess.run(["nft", "-c", "-f", str(nft_file)], check=True)
+        subprocess.run(["nft", "-f", str(nft_file)], check=True)
+        raise
 
 
 def load_fail_closed_nft(nft_file, config, nft_table, queue_num):

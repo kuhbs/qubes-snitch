@@ -64,6 +64,18 @@ class SourcesConfigTests(unittest.TestCase):
         self.assertEqual(config["prompt_protocol_colors"]["encrypted"], {("tcp", "443")})
         self.assertIn(("udp", "53"), config["prompt_protocol_colors"]["unencrypted"])
 
+    def test_config_rejects_non_ascii_before_yaml_parse(self):
+        # Config files are ASCII-only at the raw byte boundary, including comments, before PyYAML interprets them
+        snitchd = load_snitchd()
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "config.yml"
+            path.write_bytes(b"# caf\xc3\xa9\ntheme: dark\n")
+
+            with self.assertRaises(SystemExit) as caught:
+                snitchd.config.read_config(path)
+
+        self.assertIn("non-ASCII bytes are not allowed", str(caught.exception))
+
     def test_config_rejects_bad_prompt_column_widths(self):
         # Prompt widths are fixed terminal cell counts, so booleans, missing keys, and tiny columns fail
         snitchd = load_snitchd()
@@ -152,6 +164,16 @@ class SourcesConfigTests(unittest.TestCase):
         self.assertEqual(labels, {"app-browser": "orange", "disp1234": "red"})
         self.assertEqual(display_by_ip, {"10.137.50.10": "app-browser", "10.138.4.5": "disp1234(default-dvm)"})
 
+    def test_dom0_source_output_rejects_non_ascii_with_clear_error(self):
+        # Snitch checks trusted dom0 qrexec text here so operators see the real ASCII-policy error, not a timeout
+        snitchd = load_snitchd()
+        output = "app-br\u00f6wser|10.137.50.10|orange|AppVM|tpl-app\n"
+
+        with self.assertRaises(SystemExit) as caught:
+            snitchd.sources_runtime.parse_sources_output(snitchd.context(), output)
+
+        self.assertIn("non-ASCII source identity text is not supported", str(caught.exception))
+
     def test_dispvm_template_dash_sentinel_is_rejected(self):
         # qvm-ls uses - for missing data; a missing DispVM template must not become dispvm-- policy
         snitchd = load_snitchd()
@@ -209,6 +231,18 @@ class SourcesConfigTests(unittest.TestCase):
 
             with self.assertRaises(SystemExit):
                 snitchd.config.load_rules(Path(tmp))
+
+    def test_rule_file_rejects_non_ascii_before_yaml_parse(self):
+        # Rule files use the same raw ASCII gate as config, so comments cannot carry Unicode confusables either
+        snitchd = load_snitchd()
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "app-browser.yml"
+            path.write_bytes(b"# caf\xc3\xa9\nrules4: []\n\ndns: []\n")
+
+            with self.assertRaises(SystemExit) as caught:
+                snitchd.config.load_rules(Path(tmp))
+
+        self.assertIn("non-ASCII bytes are not allowed", str(caught.exception))
 
     def test_dom0_source_query_has_five_second_timeout(self):
         # qrexec runs in packet-adjacent refresh paths, so a stuck dom0 service must not stall Snitch forever

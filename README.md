@@ -2,6 +2,10 @@
 
 Qubes-Snitch is a minimalistic Qubes OS gateway firewall management tool that reacts to connection attempts and DNS resolve attempts from VMs network-chained behind its own VM.
 
+## Hard Limitations
+
+Qubes-Snitch is ASCII-only for DNS packets, PTR display names, config files, rule files, and Qubes source identity text. Non-ASCII DNS packets are dropped without parsing or DNS replies. Non-ASCII PTR names are not displayed. Non-ASCII config and rule files abort startup/reload before YAML parsing.
+
 Similar to OpenSnitch or Little Snitch, but much more lightweight, it lets you permanently allow or reject these attempts from a simple prompt. Decisions are stored in YAML files and turned into nftables rules after reboots (when the daemon starts via its systemd service). YAML files can also be manually created to pre-define allow and reject rules.
 
 Qubes-Snitch is designed to replace the default sys-firewall VM in Qubes OS (you can name it sys-snitch for example). The advantage is that connection attempts can be allowed or rejected interactively while they happen, which makes for a much more simple, fast and secure firewall setup than using `qvm-firewall` commands or the Qubes OS Firewall GUI, where you have to know which connections you want to allow before they happen, which often requires tcpdump or Wireshark.

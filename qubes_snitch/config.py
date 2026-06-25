@@ -11,6 +11,7 @@ from qubes_snitch.dns import LIVE_DNS_QNAME_RE, LIVE_DNS_SRV_QNAME_RE, SUPPORTED
 import yaml
 
 from qubes_snitch.packets import normalize_port
+from qubes_snitch.security_checks import has_non_ascii
 
 
 SOURCE_NAME_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]*[A-Za-z0-9])?$")
@@ -68,11 +69,15 @@ UniqueKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, 
 
 def read_yaml(path):
     # Broken YAML is fatal because a firewall should fail closed, not guess defaults and accidentally allow traffic
-    with path.open("r", encoding="utf-8") as handle:
-        try:
-            data = yaml.load(handle, Loader=UniqueKeyLoader)
-        except (yaml.YAMLError, ValueError, TypeError) as error:
-            raise SystemExit(f"{path}: invalid YAML: {error}")
+    raw = path.read_bytes()
+    # Config and rule files are ASCII-only before YAML parsing, including comments
+    # This keeps Unicode lookalikes out of every user-controlled policy surface instead of checking fields later
+    if has_non_ascii(raw):
+        raise SystemExit(f"{path}: non-ASCII bytes are not allowed")
+    try:
+        data = yaml.load(raw.decode("ascii"), Loader=UniqueKeyLoader)
+    except (yaml.YAMLError, ValueError, TypeError) as error:
+        raise SystemExit(f"{path}: invalid YAML: {error}")
     if not isinstance(data, dict):
         raise SystemExit(f"{path}: expected YAML mapping")
     return data
@@ -199,6 +204,11 @@ def parse_sources_output(text, source_name="qrexec source map", default_dvm_temp
     by_ip = {}
     labels = {}
     display_by_ip = {}
+    # dom0 is trusted and owns sys-snitch, but Snitch validates qrexec text here for clear operator errors
+    # If the dom0 helper rejected Unicode itself, sys-snitch would only see a qrexec failure or timeout
+    # Rejecting it here reports exactly that source identity text is outside Snitch's ASCII-only policy
+    if has_non_ascii(text):
+        raise SystemExit(f"{source_name}: non-ASCII source identity text is not supported")
     for line in text.splitlines():
         if not line.strip():
             continue

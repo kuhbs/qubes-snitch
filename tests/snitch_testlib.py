@@ -15,10 +15,20 @@ INSTALL_SH = REPO / "install.sh"
 INSTALL_DOM0_SH = REPO / "install-dom0.sh"
 
 
+class FakeDnsName:
+    # Fake DNS name object with text rendering and raw label bytes
+    def __init__(self, text, labels=None):
+        self.text = text
+        self.labels = labels or tuple(label.encode("ascii") for label in text.rstrip(".").split(".")) + (b"",)
+
+    def __str__(self):
+        return self.text
+
+
 class FakeQuestion:
     # Fake DNS question object with the fields add_dns_query_fields reads
     def __init__(self, name, rdtype, rdclass=1):
-        self.name = name
+        self.name = name if hasattr(name, "labels") else FakeDnsName(name)
         self.rdtype = rdtype
         self.rdclass = rdclass
 
@@ -34,6 +44,8 @@ class FakeDnsMessage(types.ModuleType):
         # Byte fixtures keep DNS tests readable without storing binary packet captures
         if payload == b"query-a":
             return types.SimpleNamespace(question=[FakeQuestion("Example.COM.", 1)], answer=[])
+        if payload == b"\xf6\xbequery-a":
+            return types.SimpleNamespace(question=[FakeQuestion("forum.qubes-os.org.", 1)], answer=[])
         if payload == b"query-aaaa":
             return types.SimpleNamespace(question=[FakeQuestion("Example.COM.", 28)], answer=[])
         if payload == b"query-multi":
@@ -48,6 +60,9 @@ class FakeDnsMessage(types.ModuleType):
             return types.SimpleNamespace(question=[FakeQuestion("_http._tcp.localhost.", 33)], answer=[])
         if payload == b"query-xn":
             return types.SimpleNamespace(question=[FakeQuestion("xn--pple-43d.example.", 1)], answer=[])
+        if payload == b"query-non-ascii-qname":
+            name = FakeDnsName("\\255.example.com.", (b"\xff", b"example", b"com", b""))
+            return types.SimpleNamespace(question=[FakeQuestion(name, 1)], answer=[])
         if payload == b"query-any":
             return types.SimpleNamespace(question=[FakeQuestion("Example.COM.", 255)], answer=[])
         if payload == b"query-additional":

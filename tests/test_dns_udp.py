@@ -34,6 +34,27 @@ class DnsUdpTests(unittest.TestCase):
         self.assertEqual(request["kind"], "dns-error")
         self.assertEqual(request["dns_error"], "oversize-body")
 
+    def test_dns_wire_binary_fields_do_not_reject_ascii_qname(self):
+        # DNS wire format is binary; only parsed qname labels are subject to ASCII policy
+        snitchd = load_snitchd()
+        request = {"source": "app-signal", "proto": "udp", "sport": 53000, "dport": 53, "body": b"\xf6\xbequery-a"}
+
+        self.assertTrue(snitchd.add_dns_query_fields(request))
+
+        self.assertEqual(request["kind"], "dns")
+        self.assertEqual(request["qname"], "forum.qubes-os.org")
+        self.assertEqual(request["qtype"], "A")
+
+    def test_dns_qname_with_non_ascii_label_is_rejected_after_parse(self):
+        # Raw DNS packets are binary, but non-ASCII qname labels never enter prompt or YAML policy
+        snitchd = load_snitchd()
+        request = {"source": "app-signal", "proto": "udp", "sport": 53000, "dport": 53, "body": b"query-non-ascii-qname"}
+
+        self.assertTrue(snitchd.add_dns_query_fields(request))
+
+        self.assertEqual(request["kind"], "dns-error")
+        self.assertEqual(request["dns_error"], "non-ascii-qname")
+
     def test_multi_question_dns_query_is_logged_and_dropped(self):
         # Normal DNS QUERY packets must have exactly one question; extra questions could hide unreviewed domains
         snitchd = load_snitchd()
@@ -54,6 +75,30 @@ class DnsUdpTests(unittest.TestCase):
         snitchd.packet_handlers.handle_packet(snitchd.context(), packet)
 
         self.assertIn(("syslog", snitchd.syslog.LOG_WARNING, "QUBES-SNITCH SECURITY REJECT malformed DNS SRC=app-signal IP=10.137.50.20 DST=10.139.1.1 REASON=multi-question"), events)
+        self.assertEqual([event[0] for event in events].count("set_payload"), 0)
+        self.assertEqual(events[-1], ("drop", None))
+
+    def test_non_ascii_dns_qname_security_notifies_logs_and_drops(self):
+        # Non-ASCII DNS qnames are dropped before they can enter prompt or YAML policy
+        snitchd = load_snitchd()
+        events = []
+        packet = type("Packet", (), {
+            "get_payload": lambda self: b"payload",
+            "set_payload": lambda self, payload: events.append(("set_payload", payload)),
+            "accept": lambda self: events.append(("accept", None)),
+            "drop": lambda self: events.append(("drop", None)),
+        })()
+        snitchd.SOURCES_BY_IP = {"10.137.50.20": "app-signal"}
+        snitchd.SOURCE_LABELS = {"app-signal": "green"}
+        snitchd.RULES = {"app-signal": {"ip": [{"ptr": "resolver", "dest": "10.139.1.1", "proto": "udp", "port": 53, "action": "allow"}], "dns": []}}
+        snitchd.parse_packet = lambda _payload: {"src": "10.137.50.20", "dst": "10.139.1.1", "proto": "udp", "sport": 53000, "dport": 53, "body": b"query-non-ascii-qname"}
+        snitchd.syslog.syslog = lambda priority, message: events.append(("syslog", priority, message))
+        snitchd.notify.security_notify = lambda message, *_args: events.append(("notify", message))
+
+        snitchd.packet_handlers.handle_packet(snitchd.context(), packet)
+
+        self.assertIn(("syslog", snitchd.syslog.LOG_WARNING, "QUBES-SNITCH SECURITY DROP DNS containing non-ASCII qname SRC=app-signal IP=10.137.50.20 DST=10.139.1.1"), events)
+        self.assertIn(("notify", "DROP DNS containing non-ASCII qname SRC=app-signal IP=10.137.50.20 DST=10.139.1.1"), events)
         self.assertEqual([event[0] for event in events].count("set_payload"), 0)
         self.assertEqual(events[-1], ("drop", None))
 
@@ -279,6 +324,24 @@ class DnsUdpTests(unittest.TestCase):
             self.assertEqual(snitchd.DNS_RESPONSE_CACHE, {})
             self.assertNotIn("MX", calls)
             self.assertIsNone(enriched.get("host"))
+
+    def test_non_ascii_ptr_hint_notifies_logs_and_discards_prompt(self):
+        # PTR text is DNS text from the network, so Unicode is rejected before it can become a display hint
+        snitchd = load_snitchd()
+        events = []
+        class FakeAnswers(list):
+            rrset = type("RRSet", (), {"ttl": 120})()
+        answer = type("Answer", (), {"target": "g\u00f6\u00f6gle.example."})()
+        snitchd.dns.resolver.resolve = lambda _qname, _qtype, lifetime: FakeAnswers([answer])
+        snitchd.syslog.syslog = lambda priority, message: events.append(("syslog", priority, message))
+        snitchd.notify.security_notify = lambda message, *_args: events.append(("notify", message))
+        flow_request = {"source": "app-signal", "dst": "93.184.216.34", "proto": "tcp", "dport": 443, "host": None}
+
+        enriched = snitchd.dns_cache_runtime.enrich_prompt_request(snitchd.context(), flow_request)
+
+        self.assertIsNone(enriched)
+        self.assertIn(("syslog", snitchd.syslog.LOG_WARNING, "QUBES-SNITCH SECURITY DROP PTR containing non-ASCII text SRC=app-signal DST=93.184.216.34"), events)
+        self.assertIn(("notify", "DROP PTR containing non-ASCII text SRC=app-signal DST=93.184.216.34"), events)
 
     def test_nft_checks_source_dns_queue_before_established_accept(self):
         # Known-source DNS queries must enter the source chain before established traffic is accepted
