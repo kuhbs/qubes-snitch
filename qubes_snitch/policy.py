@@ -3,6 +3,7 @@
 
 import ipaddress
 
+from qubes_snitch import config
 from qubes_snitch.dns import dns_rule_matches
 from qubes_snitch.packets import normalize_port, request_family, request_port
 
@@ -22,10 +23,14 @@ def port_matches(request, rule):
 
 
 def flow_rule_matches(request, rule):
-    # Slow scan supports CIDR and range rules that cannot be represented as one exact dictionary key
+    # Slow scan supports CIDR and hostname-backed rules that cannot be exact dictionary keys
     if str(rule["proto"]) != request["proto"]:
         return False
-    if rule["dest"] != "any" and ipaddress.ip_address(request["dst"]) not in ipaddress.ip_network(str(rule["dest"]), strict=False):
+    request_ip = ipaddress.ip_address(request["dst"])
+    if "dest_dns" in rule:
+        if request["dst"] not in rule["_resolved_dests"]:
+            return False
+    elif rule["dest"] != "any" and request_ip not in ipaddress.ip_network(str(rule["dest"]), strict=False):
         return False
     return port_matches(request, rule)
 
@@ -58,20 +63,31 @@ def append_dns_rule(request, action, data, rules):
 
 
 def append_flow_rule(request, action, data, rules):
-    # Flow rules save the exact destination/protocol/port observed in the prompt
+    # Flow rules normally save the exact destination observed in the prompt
     if request["proto"] in ("tcp", "udp") and not request["dport"]:
         # Prompted TCP/UDP rules require a real destination port so malformed port 0 cannot become an any-port rule
         raise SystemExit(f"refusing to persist malformed {request['proto']} flow without destination port")
     family_rules = request_family(request)
+    host = request.get("host")
+    hostname_action = action in ("allow-dns", "reject-dns")
     rule = {
-        "ptr": request["host"] or "no PTR",
-        "dest": request["dst"],
+        "ptr": host[2:] if hostname_action and isinstance(host, str) and host.startswith("A ") else host or "no PTR",
         "proto": request["proto"],
         "port": str(request_port(request)),
-        "action": action,
+        "action": {"allow-dns": "allow", "reject-dns": "reject"}.get(action, action),
     }
+    if hostname_action:
+        # Hostname-backed rules come only from trusted A-cache prompt text, never PTR/no-PTR labels
+        if not isinstance(host, str) or not host.startswith("A "):
+            raise SystemExit("refusing hostname rule without trusted A-cache hint")
+        rule["dest_dns"] = config.validate_dest_dns_name("prompt", host[2:])
+    else:
+        rule["dest"] = request["dst"]
     data[family_rules].append(rule)
     if request["source"] not in rules:
         # New sources get the same empty in-memory shape as an empty rule file on disk
         rules[request["source"]] = {"ip": [], "dns": []}
-    rules[request["source"]]["ip"].append(rule)
+    runtime_rule = dict(rule)
+    if hostname_action:
+        runtime_rule["_resolved_dests"] = request.get("_resolved_dests") or config.resolve_dest_dns("prompt", rule["dest_dns"])
+    rules[request["source"]]["ip"].append(runtime_rule)

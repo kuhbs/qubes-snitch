@@ -123,7 +123,7 @@ def load_policy_without_sources(ctx):
     # Load local config/rules first; this cannot depend on dom0 qrexec being responsive
     ctx.CONFIG = config.read_config(ctx.CONFIG_FILE)
     cleanup_numbered_dispvm_files(ctx)
-    ctx.RULES = config.load_rules(ctx.RULES_DIR, ctx.CONFIG["default_disposable_vm_name"])
+    ctx.RULES = config.load_rules(ctx.RULES_DIR, ctx.CONFIG["default_disposable_vm_name"], ctx.CONFIG["dns_cache_refresh_workers"])
 
 
 def append_rule(ctx, request, action):

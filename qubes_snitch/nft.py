@@ -30,6 +30,23 @@ def nft_value(value):
     return str(value)
 
 
+def nft_dest_match_value(rule):
+    # Hostname-backed rules are resolved before rendering and become an nft set literal
+    if "dest_dns" not in rule:
+        return nft_value(rule["dest"])
+    resolved = rule["_resolved_dests"]
+    if len(resolved) == 1:
+        return resolved[0]
+    return "{ " + ", ".join(resolved) + " }"
+
+
+def nft_reply_sources(rule):
+    # Reply rules mirror every concrete destination a rule can match
+    if "dest_dns" in rule:
+        return list(rule["_resolved_dests"])
+    return [nft_value(rule["dest"])]
+
+
 def nft_port(value, proto):
     # Convert service names and validate numeric/range ports before inserting the value into nft syntax
     port = normalize_port(value, proto)
@@ -41,7 +58,7 @@ def nft_port(value, proto):
 def render_match(rule):
     # Build the nft match expression from the tiny rule schema: destination, protocol, and optional port
     parts = ["meta", "nfproto", "ipv4"]
-    dest = nft_value(rule["dest"])
+    dest = nft_dest_match_value(rule)
     port = nft_port(rule["port"], rule["proto"])
     if dest:
         parts += ["ip", "daddr", dest]
@@ -73,7 +90,7 @@ def udp_rule_includes_dns(rule):
 def render_dns_queue_match(rule):
     # Keep the original destination constraint but narrow the queued packet to UDP destination port 53
     parts = ["meta", "nfproto", "ipv4"]
-    dest = nft_value(rule["dest"])
+    dest = nft_dest_match_value(rule)
     if dest:
         parts += ["ip", "daddr", dest]
     parts += ["udp", "dport", "53"]
@@ -106,13 +123,10 @@ def render_established_reply_rule(source, source_ip, rule, config, reply_source=
     # Reply packets reverse source/destination, so mirror source rules with sport/daddr matches
     # Keep YAML order so broad later rules cannot override earlier specific decisions
     parts = ["meta", "nfproto", "ipv4"]
-    dest = nft_value(rule["dest"])
     port = nft_port(rule["port"], rule["proto"])
     if reply_source:
-        # Broad inter-VM reply policy is constrained to known peer IPs before source jumps to avoid unknown-source bypass
+        # Broad inter-VM and hostname-backed reply policy is constrained before source jumps
         parts += ["ip", "saddr", reply_source]
-    elif dest:
-        parts += ["ip", "saddr", dest]
     parts += ["ip", "daddr", source_ip]
     if rule["proto"] in ("tcp", "udp"):
         if port:
@@ -131,6 +145,11 @@ def render_established_reply_rule(source, source_ip, rule, config, reply_source=
         prefix = nft_quote(f"QUBES-SNITCH {source} reject ")
         return f"  {match} {nft_log_limit(config)} log prefix {prefix} counter reject with icmpx admin-prohibited"
     raise SystemExit(f"{source}: unknown action {rule['action']}")
+
+
+def render_established_reply_rules(source, source_ip, rule, config):
+    # A hostname-backed rule can resolve to several remote source IPs for reply traffic
+    return [render_established_reply_rule(source, source_ip, rule, config, reply_source) for reply_source in nft_reply_sources(rule)]
 
 
 def nft_source_jump(ip, chain):
@@ -194,7 +213,7 @@ def render_nft(sources, rules, config, nft_table, queue_num):
     for source, ips in sources.items():
         for ip in ips:
             for rule in rules[source]["ip"]:
-                lines.append(render_established_reply_rule(source, ip, rule, config))
+                lines.extend(render_established_reply_rules(source, ip, rule, config))
     # UDP/53 source jumps come before generic source jumps because DNS has resolver and qname policy layers
     for source, ips in sources.items():
         for ip in ips:

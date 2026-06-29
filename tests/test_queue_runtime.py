@@ -64,6 +64,32 @@ class QueueRuntimeTests(unittest.TestCase):
         self.assertIn(key, queue.PENDING_QUESTIONS)
 
 
+    def test_hostname_decision_removes_already_queued_sibling_ips(self):
+        # If two IPs from the same A record are already queued, answering A/R once must not prompt the sibling next
+        current_key = ("app-signal", "net", "76.223.66.180", "tcp", 443)
+        sibling_key = ("app-signal", "net", "15.197.251.99", "tcp", 443)
+        other_port_key = ("app-signal", "net", "15.197.251.99", "tcp", 80)
+        request = {"_prompt_id": 1, "source": "app-signal", "host": "A grpc.chat.signal.org", "dst": "76.223.66.180", "proto": "tcp", "dport": 443, "body": b""}
+        queue.PENDING_QUESTIONS[current_key] = dict(request)
+        queue.PENDING_PROMPT_IDS[current_key] = 1
+        queue.PENDING_QUESTIONS[sibling_key] = {"source": "app-signal", "host": "A grpc.chat.signal.org", "dst": "15.197.251.99", "proto": "tcp", "dport": 443, "body": b""}
+        queue.PENDING_PROMPT_IDS[sibling_key] = 2
+        queue.PENDING_QUESTIONS[other_port_key] = {"source": "app-signal", "host": "A grpc.chat.signal.org", "dst": "15.197.251.99", "proto": "tcp", "dport": 80, "body": b""}
+        queue.PENDING_PROMPT_IDS[other_port_key] = 3
+        saved = []
+
+        original_resolve = queue.snitch_config.resolve_dest_dns
+        self.addCleanup(lambda: setattr(queue.snitch_config, "resolve_dest_dns", original_resolve))
+        queue.snitch_config.resolve_dest_dns = lambda _path, _hostname: ["15.197.251.99", "76.223.66.180"]
+
+        queue.save_pending_decision(current_key, request, "allow-dns", threading.Lock(), lambda _request, _decision: saved.append("append"), lambda: saved.append("load"))
+
+        self.assertEqual(saved, ["append", "load"])
+        self.assertNotIn(current_key, queue.PENDING_QUESTIONS)
+        self.assertNotIn(sibling_key, queue.PENDING_QUESTIONS)
+        self.assertIn(other_port_key, queue.PENDING_QUESTIONS)
+
+
     def test_full_queue_rejects_new_prompt_without_evicting_existing(self):
         config = {"pending_queue_size": 1}
         first = {"source": "browser", "host": None, "dst": "1.2.3.4", "proto": "tcp", "dport": 443, "body": b""}

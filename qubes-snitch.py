@@ -4,13 +4,14 @@
 # The daemon sends one queued question over the Unix socket; this CLI prints it and returns one allow/reject answer
 
 import fcntl
+import ipaddress
 import json
 import socket
 import sys
 import termios
 import tty
 
-from qubes_snitch import config
+from qubes_snitch import config as snitch_config
 from qubes_snitch.paths import CONFIG_FILE, LOCK_FILE, SOCKET_FILE
 from qubes_snitch.ui import header_line, packet_line
 
@@ -27,16 +28,59 @@ def read_key():
     return key
 
 
+def resolve_hostname_ips(hostname):
+    # Preview the exact IPv4 set before the user chooses hostname-backed policy
+    import dns.resolver
+
+    answers = dns.resolver.resolve(hostname, "A", lifetime=3.0)
+    ips = []
+    for answer in answers:
+        address = ipaddress.ip_address(answer.to_text())
+        if address.version == 4:
+            ips.append(str(address))
+    return sorted(set(ips), key=ipaddress.ip_address)
+
+
+def add_hostname_choices(request):
+    # Only multi-IP A records get hostname policy choices; single-IP rows stay compact a/r prompts
+    host = request.get("host")
+    if not isinstance(host, str) or not host.startswith("A "):
+        return
+    try:
+        hostname = snitch_config.validate_dest_dns_name("prompt", host[2:])
+        ips = resolve_hostname_ips(hostname)
+    except Exception:
+        return
+    if len(ips) > 1 and request["dst"] in ips:
+        request["_resolved_dests"] = ips
+
+
 def ask(request, config):
-    # The prompt shows [a/R]; only a/A allows, and every other key safely rejects
-    sys.stdout.write(packet_line(request, config))
-    sys.stdout.flush()
-    key = read_key()
-    action = "allow" if key in ("a", "A") else "reject"
-    # Echo the normalized decision so the terminal scrollback shows what the user chose
-    sys.stdout.write("a\n" if action == "allow" else "r\n")
-    sys.stdout.flush()
-    return action
+    # Only displayed keys are decisions; accidental Enter or other keys redraw the prompt
+    request = dict(request)
+    add_hostname_choices(request)
+    while True:
+        sys.stdout.write(packet_line(request, config))
+        sys.stdout.flush()
+        key = read_key()
+        if key == "a":
+            sys.stdout.write("a\n")
+            sys.stdout.flush()
+            return "allow"
+        if key == "r":
+            sys.stdout.write("r\n")
+            sys.stdout.flush()
+            return "reject"
+        if key == "A" and "_resolved_dests" in request:
+            sys.stdout.write("A\n")
+            sys.stdout.flush()
+            return "allow-dns"
+        if key == "R" and "_resolved_dests" in request:
+            sys.stdout.write("R\n")
+            sys.stdout.flush()
+            return "reject-dns"
+        sys.stdout.write("\n")
+        sys.stdout.flush()
 
 
 def acquire_cli_lock():
@@ -86,7 +130,7 @@ def handle_request(config):
 def main():
     # Read config once at startup; restart the CLI if the user changes terminal theme settings
     lock_handle = acquire_cli_lock()
-    config_data = config.read_config(CONFIG_FILE)
+    config_data = snitch_config.read_config(CONFIG_FILE)
     sys.stdout.write(header_line(config_data))
     sys.stdout.flush()
     while True:

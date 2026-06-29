@@ -7,6 +7,7 @@ import syslog
 import threading
 from collections import OrderedDict
 
+from qubes_snitch import config as snitch_config
 from qubes_snitch.packets import request_port, request_without_body
 
 
@@ -79,8 +80,40 @@ def discard_pending_decision(key, request):
             PENDING_PROMPT_IDS.pop(key, None)
 
 
+def prepare_hostname_decision(request, decision):
+    # Resolve hostname-backed choices before taking the policy lock; packet handling must not wait on DNS
+    if decision not in ("allow-dns", "reject-dns"):
+        return
+    host = request.get("host")
+    if not isinstance(host, str) or not host.startswith("A "):
+        raise SystemExit("refusing hostname rule without trusted A-cache hint")
+    hostname = snitch_config.validate_dest_dns_name("prompt", host[2:])
+    resolved = snitch_config.resolve_dest_dns("prompt", hostname)
+    if len(resolved) <= 1 or request["dst"] not in resolved:
+        raise SystemExit("refusing hostname rule without multi-IP DNS set containing current destination")
+    request["_resolved_dests"] = resolved
+
+
+def remove_pending_hostname_set(request, decision):
+    # A/R decisions cover the whole resolved IP set, so drop already queued sibling prompts for those IPs
+    if decision not in ("allow-dns", "reject-dns"):
+        return
+    resolved = set(request["_resolved_dests"])
+    for pending_key, pending_request in list(PENDING_QUESTIONS.items()):
+        if pending_request.get("kind") == "dns":
+            continue
+        if pending_request["source"] != request["source"]:
+            continue
+        if pending_request["proto"] != request["proto"] or request_port(pending_request) != request_port(request):
+            continue
+        if pending_request["dst"] in resolved:
+            del PENDING_QUESTIONS[pending_key]
+            PENDING_PROMPT_IDS.pop(pending_key, None)
+
+
 def save_pending_decision(key, request, decision, policy_lock, append_rule, load_nft):
     # Queue cleanup is authoritative; claim the prompt under policy lock so source cleanup cannot race rule writes
+    prepare_hostname_decision(request, decision)
     with policy_lock:
         with PENDING_CONDITION:
             if key not in PENDING_QUESTIONS or PENDING_PROMPT_IDS.get(key) != request.get("_prompt_id"):
@@ -88,6 +121,7 @@ def save_pending_decision(key, request, decision, policy_lock, append_rule, load
                 return
             del PENDING_QUESTIONS[key]
             PENDING_PROMPT_IDS.pop(key, None)
+            remove_pending_hostname_set(request, decision)
         append_rule(request, decision)
         load_nft()
 
@@ -108,7 +142,7 @@ def handle_cli_connection(conn, policy_lock, append_rule, load_nft, enrich_reque
     except OSError as error:
         syslog.syslog(syslog.LOG_INFO, f"QUBES-SNITCH keep pending request after CLI error: {error}")
         return
-    if decision not in ("allow", "reject"):
+    if decision not in ("allow", "allow-dns", "reject", "reject-dns"):
         # Invalid or empty answers are ignored so accidental terminal exits do not create firewall rules
         syslog.syslog(syslog.LOG_INFO, f"QUBES-SNITCH keep pending request after invalid CLI decision: {decision!r}")
         return

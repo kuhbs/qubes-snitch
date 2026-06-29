@@ -217,17 +217,49 @@ def header_line(config=None):
     return f"{BOLD}{header}{RESET}\n"
 
 
+def action_prompt(request):
+    # Uppercase A/R exist only when the CLI already resolved a trusted A-cache hint to multiple IPs
+    if request.get("_resolved_dests"):
+        return "[a/r/A/R] "
+    return "[a/r] "
+
+
+def continuation_prefix(widths):
+    # Extra resolved-IP rows align under TARGET while preserving the ACTION column
+    return f"{'':<{widths['queue']}}{COLUMN_GAP}{'':<{widths['source']}}{COLUMN_GAP}"
+
+
+def action_padding(widths, target, dns, service):
+    # Compute literal spacing from TARGET continuation text to the ACTION column
+    return (
+        max(widths["target"] - len(target), 0)
+        + len(COLUMN_GAP)
+        + widths["dns"]
+        + len(COLUMN_GAP)
+        + service_width(widths, target, dns, service)
+        + len(COLUMN_GAP)
+    )
+
+
 def packet_line(request, config):
-    # Fixed-width columns keep the terminal readable while the final [a/R] shows the only accepted action key
+    # Fixed-width columns keep the terminal readable while ACTION shows accepted decision keys
     widths = prompt_widths(config)
     target, dns, service, target_color, dns_cell_color, service_color = prompt_fields(config, request)
     remaining = f"{request.get('remaining', 0) + 1:<{widths['queue']}}"
     rendered_service_width = service_width(widths, target, dns, service)
-    return (
+    first_line = (
         f"{remaining}{COLUMN_GAP}"
         f"{colored_source(request, config['theme'], widths)}{COLUMN_GAP}"
         f"{color_cell(target, widths['target'], target_color)}{COLUMN_GAP}"
         f"{color_cell(dns, widths['dns'], dns_cell_color)}{COLUMN_GAP}"
         f"{color_cell(service, rendered_service_width, service_color)}{COLUMN_GAP}"
-        "[a/R] "
     )
+    resolved = [ip for ip in request.get("_resolved_dests", []) if ip != target]
+    if not resolved:
+        return first_line + action_prompt(request)
+    extra_lines = []
+    prefix = continuation_prefix(widths)
+    for index, ip in enumerate(resolved):
+        suffix = action_prompt(request) if index == len(resolved) - 1 else ""
+        extra_lines.append(f"{prefix}{ip}{' ' * action_padding(widths, ip, dns, service)}{suffix}")
+    return first_line.rstrip() + "\n" + "\n".join(extra_lines)

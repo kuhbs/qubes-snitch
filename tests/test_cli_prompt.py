@@ -124,7 +124,7 @@ class CliPromptTests(unittest.TestCase):
         long_line = cli.packet_line(long_request, PROMPT_CONFIG)
         normal_line = cli.packet_line(normal_request, PROMPT_CONFIG)
 
-        self.assertEqual(long_line.index("[a/R]"), normal_line.index("[a/R]"))
+        self.assertEqual(long_line.index("[a/r]"), normal_line.index("[a/r]"))
 
     def test_cli_sanitizes_control_characters_from_display_fields(self):
         # PTR/DNS display text is remote-controlled, so it must not create fake terminal rows

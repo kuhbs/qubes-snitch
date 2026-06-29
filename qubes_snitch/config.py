@@ -1,11 +1,14 @@
 # YAML config and policy loading for Qubes Snitch
 # Paths are passed in by the daemon/tests so one validator is used everywhere
 
+from concurrent.futures import ThreadPoolExecutor
+
 import ipaddress
 import re
 
 import dns.exception
 import dns.rdatatype
+import dns.resolver
 
 from qubes_snitch.dns import LIVE_DNS_QNAME_RE, LIVE_DNS_SRV_QNAME_RE, SUPPORTED_DNS_QTYPES, dns_qname_is_ipv6_reverse
 import yaml
@@ -242,6 +245,67 @@ def parse_sources_output(text, source_name="qrexec source map", default_dvm_temp
     return by_name, by_ip, labels, display_by_ip
 
 
+def validate_dest_dns_name(path, value):
+    # Hostname-backed flow rules use the same readable ASCII DNS name contract as live A prompts
+    rule = {"qname": value, "qtype": "A", "action": "allow"}
+    validate_dns_rule(path, rule)
+    if rule["qname"].startswith("*."):
+        raise SystemExit(f"{path}: dest_dns must be a concrete DNS name")
+    return rule["qname"]
+
+
+def resolve_dest_dns(path, qname):
+    # Resolve once at policy load/reload time; nftables receives only concrete IPv4 addresses
+    try:
+        answers = dns.resolver.resolve(qname, "A", lifetime=3.0)
+    except Exception as error:
+        raise SystemExit(f"{path}: could not resolve dest_dns {qname}: {error}")
+    ips = []
+    for answer in answers:
+        ip = answer.to_text()
+        try:
+            address = ipaddress.ip_address(ip)
+        except ValueError:
+            raise SystemExit(f"{path}: dest_dns {qname} resolved invalid address: {ip}")
+        if address.version != 4:
+            raise SystemExit(f"{path}: dest_dns {qname} resolved non-IPv4 address: {ip}")
+        ips.append(str(address))
+    resolved = sorted(set(ips), key=ipaddress.ip_address)
+    if not resolved:
+        raise SystemExit(f"{path}: dest_dns {qname} resolved no IPv4 addresses")
+    return resolved
+
+
+def resolve_dest_dns_names(qname_paths, dns_workers):
+    # Resolve all hostname-backed flow rules together so daemon restart is not one DNS timeout per rule
+    if not qname_paths:
+        return {}
+    qnames = sorted(qname_paths)
+    workers = min(dns_workers, len(qnames))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = {qname: executor.submit(resolve_dest_dns, qname_paths[qname], qname) for qname in qnames}
+        return {qname: future.result() for qname, future in futures.items()}
+
+
+def resolve_dest_dns_rules(path, rules, dns_workers):
+    # Compatibility helper for tests and single-file callers
+    return resolve_dest_dns_names({rule["dest_dns"]: path for rule in rules if "dest_dns" in rule}, dns_workers)
+
+
+def runtime_flow_rule(path, rule, resolved_dest_dns=None):
+    # Keep YAML clean while adding resolved addresses only to the daemon's in-memory policy
+    runtime = dict(rule)
+    if "dest_dns" in runtime:
+        resolved = resolved_dest_dns or {runtime["dest_dns"]: resolve_dest_dns(path, runtime["dest_dns"])}
+        runtime["_resolved_dests"] = resolved[runtime["dest_dns"]]
+    return runtime
+
+
+def runtime_flow_rules(path, rules, dns_workers=32):
+    resolved_dest_dns = resolve_dest_dns_rules(path, rules, dns_workers)
+    return [runtime_flow_rule(path, rule, resolved_dest_dns) for rule in rules]
+
+
 def validate_dns_rule(path, rule):
     # Hand-written DNS rules must fail closed instead of silently becoming dead policy
     if not isinstance(rule["qname"], str):
@@ -285,21 +349,25 @@ def validate_rule_file(path, data):
     for rule in data["rules4"]:
         if not isinstance(rule, dict):
             raise SystemExit(f"{path}: every flow rule must be a mapping")
-        if set(rule) != {"ptr", "dest", "proto", "port", "action"}:
-            raise SystemExit(f"{path}: every flow rule must have ptr, dest, proto, port, action")
+        keys = set(rule)
+        if not {"ptr", "proto", "port", "action"}.issubset(keys) or ("dest" in keys) == ("dest_dns" in keys) or keys - {"ptr", "dest", "dest_dns", "proto", "port", "action"}:
+            raise SystemExit(f"{path}: every flow rule must have ptr, exactly one of dest or dest_dns, proto, port, action")
         if rule["action"] not in ("allow", "reject"):
             raise SystemExit(f"{path}: invalid action: {rule['action']}")
+        if "dest_dns" in rule:
+            rule["dest_dns"] = validate_dest_dns_name(path, rule["dest_dns"])
         proto = str(rule["proto"])
         if proto.isdigit():
             raise SystemExit(f"{path}: use protocol names instead of numeric proto {proto}")
         if proto not in FLOW_PROTOS:
             raise SystemExit(f"{path}: invalid proto: {rule['proto']}")
         rule["proto"] = proto
-        if isinstance(rule["dest"], list) or isinstance(rule["port"], list):
+        dest_value = rule.get("dest", rule.get("dest_dns"))
+        if isinstance(dest_value, list) or isinstance(rule["port"], list):
             raise SystemExit(f"{path}: dest and port must be scalar values")
         if not isinstance(rule["port"], str):
             raise SystemExit(f"{path}: port must be a quoted string")
-        if rule["dest"] != "any":
+        if "dest" in rule and rule["dest"] != "any":
             try:
                 network = ipaddress.ip_network(str(rule["dest"]), strict=False)
             except ValueError:
@@ -329,9 +397,10 @@ def empty_rule_file(path):
     path.write_text("rules4: []\n\ndns: []\n", encoding="utf-8")
 
 
-def load_rules(rules_dir, default_disposable_vm_name=DEFAULT_DVM_TEMPLATE):
+def load_rules(rules_dir, default_disposable_vm_name=DEFAULT_DVM_TEMPLATE, dns_workers=32):
     # The filename is the source identity, so each YAML file only stores rules for that one source
-    rules = {}
+    loaded = []
+    qname_paths = {}
     for path in sorted(rules_dir.glob("*.yml")):
         if not SOURCE_NAME_RE.fullmatch(path.stem):
             raise SystemExit(f"{path}: invalid source filename")
@@ -342,5 +411,12 @@ def load_rules(rules_dir, default_disposable_vm_name=DEFAULT_DVM_TEMPLATE):
             raise SystemExit(f"{path}: default DisposableVM policy is not supported")
         data = read_yaml(path)
         validate_rule_file(path, data)
-        rules[path.stem] = {"ip": data["rules4"], "dns": data["dns"]}
+        loaded.append((path, data))
+        for rule in data["rules4"]:
+            if "dest_dns" in rule:
+                qname_paths.setdefault(rule["dest_dns"], path)
+    resolved_dest_dns = resolve_dest_dns_names(qname_paths, dns_workers)
+    rules = {}
+    for path, data in loaded:
+        rules[path.stem] = {"ip": [runtime_flow_rule(path, rule, resolved_dest_dns) for rule in data["rules4"]], "dns": data["dns"]}
     return rules

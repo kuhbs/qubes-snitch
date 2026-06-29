@@ -220,13 +220,14 @@ def refresh_dns_rules(ctx, source, rules):
 
 
 def lazy_dns_name(ctx, source, ip):
-    # Try the stale likely match first, then check every allowed qname without serial DNS stalls
+    # Prefer newly refreshed allowed qnames, then the latest matching allowed rule already in cache
     stale_rule = stale_response_rule(ctx, source, ip)
     if stale_rule:
         labels = refresh_dns_rule(ctx, source, stale_rule[0], stale_rule[1])
         if ip in labels:
             return f"A {labels[ip]}"
     refresh_rules = []
+    cached_matches = []
     for qname, qtype in allowed_dns_hint_rules(ctx, source):
         if stale_rule == (qname, qtype):
             continue
@@ -235,10 +236,12 @@ def lazy_dns_name(ctx, source, ip):
             refresh_rules.append((qname, qtype))
             continue
         if ip in labels:
-            return f"A {labels[ip]}"
+            cached_matches.append(labels[ip])
     for labels in refresh_dns_rules(ctx, source, refresh_rules):
         if ip in labels:
             return f"A {labels[ip]}"
+    if cached_matches:
+        return f"A {cached_matches[-1]}"
     return ptr_name(ctx, source, ip)
 
 
@@ -259,7 +262,9 @@ def add_cached_dns_name(ctx, request):
 
 def enrich_prompt_request(ctx, request):
     # The CLI thread may spend a bounded amount of time improving a displayed prompt without delaying packet verdicts
-    if request.get("kind") == "dns" or request.get("host") or not request.get("dst"):
+    if request.get("kind") == "dns" or not request.get("dst"):
+        return request
+    if request.get("host") and not str(request["host"]).startswith("A "):
         return request
     name = lazy_dns_name(ctx, request["source"], request["dst"])
     if name is DNS_PTR_REJECT:
